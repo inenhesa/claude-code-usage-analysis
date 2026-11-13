@@ -31,10 +31,12 @@ The session behind those dollars is 60 messages, 8 model calls each, 4,000 new t
 | --- | ---: | ---: | ---: |
 | Prompt tokens | 222,160,000 | 72,881,600 | lower still, at a higher compaction count |
 | Sonnet 5 list price | $56.07 | $27.25 | $23.90 at 120k |
-| Opus 5.5 list price | $68.16 | not this row's valley | $38.64 at 160k |
-| Compactions on the 250k comparison | 2 | 10 | a handful more than 10, still the cheap side |
+| Opus 5.5 list price | $68.16 | 0.05x reads, not the 0.1x row | $38.64 at 160k |
+| Compactions, 967k vs 250k | 2 | 10 | more often at 120k, still cheaper |
 
-Four long breaks with idle compaction left on, which recent Claude Code does once you pass 200k, shrink the gap to about 24%. The big thread gets summarized while the cache is still warm. If the summary drops a project rule and the agent spends about 15 repair calls putting it back, the saving falls to about 3%. That is why the rule belongs in root `CLAUDE.md` before you lower the trigger.
+Four long breaks with idle compaction left on, which recent Claude Code does once you pass 200k, shrink the gap to about 24%. The big thread gets summarized while the cache is still warm. Turn idle compaction off if the trigger you chose should be the only one.
+
+If the summary drops a project rule and the agent spends about 15 repair calls putting it back, the saving falls to about 3%. That is why the rule belongs in root `CLAUDE.md` before you lower the trigger.
 
 ## Paste one line
 
