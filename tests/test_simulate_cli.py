@@ -24,6 +24,7 @@ def test_simulate_writes_summary_and_plots(tmp_path: Path):
         "amnesia_breakeven.png",
         "ttl_cliff.png",
         "compounding_sawtooth.png",
+        "scenario_comparison.png",
     ]
     for name in expected:
         path = figures / name

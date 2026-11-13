@@ -21,6 +21,7 @@ Do not write "the default is 95%." Native 1M models compact at about 967K ([mode
 1. `outputs/figures/cumulative_raw_tokens.png`. S1 cumulative prompt tokens.
 2. `outputs/figures/cumulative_api_equivalent.png`. Same session, priced.
 3. `outputs/figures/context_sawtooth.png`. Prompt size at 250k and at about 967k.
+3b. `outputs/figures/scenario_comparison.png`. API cost ratio for the eight headline cases.
 4. `outputs/figures/eoq_curve.png`. Cost versus trigger at read prices 0.1, 0.05, and 0.025.
 5. `outputs/figures/amnesia_breakeven.png`. S3 repair sweep.
 6. `outputs/figures/ttl_cliff.png`. Idle off, idle on, 5-minute TTL.

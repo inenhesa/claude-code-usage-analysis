@@ -163,141 +163,253 @@ def write_figures(summary: dict, out: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    plt.rcParams.update(
+        {
+            "font.family": "DejaVu Sans",
+            "font.size": 12,
+            "axes.titlesize": 15,
+            "axes.labelsize": 12,
+            "xtick.labelsize": 11,
+            "ytick.labelsize": 11,
+            "legend.fontsize": 11,
+            "figure.facecolor": "white",
+            "savefig.facecolor": "white",
+            "savefig.edgecolor": "white",
+            "axes.facecolor": "white",
+            "text.color": "#1a1a1a",
+            "axes.labelcolor": "#1a1a1a",
+            "xtick.color": "#1a1a1a",
+            "ytick.color": "#1a1a1a",
+            "axes.titlecolor": "#1a1a1a",
+        }
+    )
+    navy = "#143d66"
+    clay = "#c4511b"
+    green = "#1f7a4d"
+    ink = "#1a1a1a"
+    by_name = {row["name"]: row for row in summary["scenarios"]}
     figures = out / "figures"
     figures.mkdir(parents=True, exist_ok=True)
     hi = simulate(Assumptions())
     lo = simulate(replace(Assumptions(), pct=0.25))
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(_cumsum(hi, "raw_prompt"), label="about 967k")
-    ax.plot(_cumsum(lo, "raw_prompt"), label="25% of 1M (250k)")
-    ax.set_title("S1 raw prompt tokens, physical prefix caching")
-    ax.set_xlabel("Model request")
-    ax.set_ylabel("Cumulative prompt tokens")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "cumulative_raw_tokens.png")
-    plt.close(fig)
+    def axes(figsize: tuple[float, float]):
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("#d5d8dc")
+        ax.spines["bottom"].set_color("#d5d8dc")
+        ax.tick_params(length=0, pad=6)
+        ax.grid(axis="y", color="#eef0f2", linewidth=1)
+        ax.set_axisbelow(True)
+        return fig, ax
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(_cumsum(hi, "api"), label="about 967k")
-    ax.plot(_cumsum(lo, "api"), label="250k")
-    ax.set_title("S1 API-equivalent units (reads at 0.1x, 1-hour writes at 2x)")
-    ax.set_xlabel("Model request")
-    ax.set_ylabel("Cumulative base-input-token units")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "cumulative_api_equivalent.png")
-    plt.close(fig)
+    def finish(fig, path: Path) -> None:
+        fig.savefig(path, dpi=160, bbox_inches="tight", pad_inches=0.45, facecolor="white")
+        plt.close(fig)
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(_context(hi), label="about 967k", linewidth=1)
-    ax.plot(_context(lo), label="250k", linewidth=1)
-    ax.set_title("Context size at each request, S1")
-    ax.set_xlabel("Model request")
-    ax.set_ylabel("Prompt tokens")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "context_sawtooth.png")
-    plt.close(fig)
+    def title(ax, text: str) -> None:
+        ax.set_title(text, loc="left", pad=14)
+
+    def tokens(value, _pos):
+        if abs(value) >= 1_000_000:
+            scaled = value / 1_000_000
+            text = f"{scaled:.1f}".rstrip("0").rstrip(".")
+            return f"{text}M"
+        return f"{value / 1000:.0f}k"
+
+    def millions(value, _pos):
+        return f"{value / 1_000_000:.0f}M"
+
+    def legend_side(ax) -> None:
+        ax.legend(frameon=False, loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
+
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(_cumsum(hi, "raw_prompt"), color=navy, linewidth=2.2, label="about 967k")
+    ax.plot(_cumsum(lo, "raw_prompt"), color=clay, linewidth=2.2, label="250k")
+    title(ax, "Raw prompt tokens in one long session")
+    ax.set_xlabel("Model request", labelpad=8)
+    ax.set_ylabel("Cumulative prompt tokens", labelpad=8)
+    ax.yaxis.set_major_formatter(millions)
+    legend_side(ax)
+    finish(fig, figures / "cumulative_raw_tokens.png")
+
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(_cumsum(hi, "api"), color=navy, linewidth=2.2, label="about 967k")
+    ax.plot(_cumsum(lo, "api"), color=clay, linewidth=2.2, label="250k")
+    title(ax, "Same session, priced like the API")
+    ax.set_xlabel("Model request", labelpad=8)
+    ax.set_ylabel("Cumulative API-equivalent units", labelpad=8)
+    ax.yaxis.set_major_formatter(millions)
+    legend_side(ax)
+    finish(fig, figures / "cumulative_api_equivalent.png")
+
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(_context(hi), color=navy, linewidth=1.6, label="about 967k, 2 compactions")
+    ax.plot(_context(lo), color=clay, linewidth=1.6, label="250k, 10 compactions")
+    title(ax, "Context grows, then a summary cuts it back")
+    ax.set_xlabel("Model request", labelpad=8)
+    ax.set_ylabel("Prompt size", labelpad=8)
+    ax.yaxis.set_major_formatter(tokens)
+    ax.set_ylim(0, 1_150_000)
+    legend_side(ax)
+    finish(fig, figures / "context_sawtooth.png")
 
     curve = summary["eoq"]["simulated_best_10k_grid"]["0.1"]["curve"]
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    for key, label in (("0.1", "reads 0.1x"), ("0.05", "reads 0.05x"), ("0.025", "reads 0.025x")):
-        points = summary["eoq"]["simulated_best_10k_grid"][key]["curve"]
-        ax.plot([p["trigger"] for p in points], [p["api"] for p in points], label=label)
-    ax.set_title("API-equivalent cost versus trigger (EOQ sweep)")
-    ax.set_xlabel("Trigger tokens")
-    ax.set_ylabel("API-equivalent units")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "eoq_curve.png")
-    plt.close(fig)
+    fig, ax = axes((9.4, 5.4))
+    series = (
+        ("0.1", "reads at 0.1x", navy),
+        ("0.05", "reads at 0.05x", clay),
+        ("0.025", "reads at 0.025x", green),
+    )
+    for key, label, color in series:
+        block = summary["eoq"]["simulated_best_10k_grid"][key]
+        points = block["curve"]
+        ax.plot(
+            [p["trigger"] for p in points],
+            [p["api"] for p in points],
+            color=color,
+            linewidth=2.2,
+            label=label,
+        )
+        ax.scatter([block["best_trigger"]], [block["best_api"]], color=color, s=42, zorder=4)
+    title(ax, "The cheap trigger is a valley, not 25% of 1M")
+    ax.set_xlabel("Compaction trigger", labelpad=8)
+    ax.set_ylabel("API-equivalent cost of the session", labelpad=8)
+    ax.xaxis.set_major_formatter(tokens)
+    ax.yaxis.set_major_formatter(millions)
+    ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
+    legend_side(ax)
+    finish(fig, figures / "eoq_curve.png")
+
+    compare = [
+        ("Long session, 250k", "S1"),
+        ("T3 window, about 217k", "S1b"),
+        ("Short bugfix", "S2"),
+        ("Bugfix forced to 100k", "S2b"),
+        ("15 repairs per compact", "S3-15"),
+        ("Idle compaction on", "S4b"),
+        ("Both knobs, 62.5k", "S8"),
+        ("62.5k versus 250k alone", "S8b"),
+    ]
+    fig, ax = axes((9.6, 5.8))
+    values = [by_name[name]["api_saving"] for _, name in compare]
+    colors = [navy if value >= 1 else clay for value in values]
+    positions = list(range(len(compare)))
+    ax.barh(positions, values, color=colors, height=0.62)
+    ax.axvline(1.0, color=ink, linewidth=1)
+    ax.set_yticks(positions)
+    ax.set_yticklabels([label for label, _ in compare])
+    ax.invert_yaxis()
+    ax.set_xlim(0, 2.85)
+    ax.set_xlabel("API cost of the higher trigger, divided by the lower one", labelpad=8)
+    title(ax, "Earlier compaction helps only some sessions")
+    for index, value in enumerate(values):
+        ax.text(value + 0.06, index, f"{value:.2f}x", va="center", ha="left", fontsize=11, color=ink)
+    ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", color="#eef0f2", linewidth=1)
+    finish(fig, figures / "scenario_comparison.png")
 
     amnesia = [row for row in summary["scenarios"] if row["name"].startswith("S3-")]
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = axes((9.4, 5.2))
     ks = [0, 3, 6, 10, 15]
-    ax.plot(ks, [row["api_saving"] for row in amnesia], marker="o", label="API-equivalent")
-    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], marker="o", label="raw prompt")
-    ax.axhline(1.0, color="black", linewidth=0.8)
-    ax.set_title("Amnesia: extra rework calls per compaction, both arms")
-    ax.set_xlabel("Rework calls of 8k tail after each compaction")
-    ax.set_ylabel("High trigger cost / low trigger cost")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "amnesia_breakeven.png")
-    fig.savefig(figures / "sensitivity_rework.png")
-    plt.close(fig)
+    ax.plot(ks, [row["api_saving"] for row in amnesia], color=navy, marker="o", linewidth=2.2, label="API-equivalent")
+    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=clay, marker="o", linewidth=2.2, label="raw prompt")
+    ax.axhline(1.0, color=ink, linewidth=1)
+    title(ax, "Repair work can erase the priced saving")
+    ax.set_xlabel("Extra 8k-tail requests after each compaction", labelpad=8)
+    ax.set_ylabel("Higher trigger cost / lower trigger cost", labelpad=8)
+    ax.set_xticks(ks)
+    ax.legend(frameon=False, loc="upper right")
+    finish(fig, figures / "amnesia_breakeven.png")
+    # Same figure, kept under the older filename.
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(ks, [row["api_saving"] for row in amnesia], color=navy, marker="o", linewidth=2.2, label="API-equivalent")
+    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=clay, marker="o", linewidth=2.2, label="raw prompt")
+    ax.axhline(1.0, color=ink, linewidth=1)
+    title(ax, "Repair work can erase the priced saving")
+    ax.set_xlabel("Extra 8k-tail requests after each compaction", labelpad=8)
+    ax.set_ylabel("Higher trigger cost / lower trigger cost", labelpad=8)
+    ax.set_xticks(ks)
+    ax.legend(frameon=False, loc="upper right")
+    finish(fig, figures / "sensitivity_rework.png")
 
     names = ["S4", "S4b", "S4c"]
-    labels = ["1h TTL, idle off", "1h TTL, idle on", "5m TTL, 7-min gaps"]
-    by_name = {row["name"]: row for row in summary["scenarios"]}
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.bar(labels, [by_name[name]["api_saving"] for name in names])
-    ax.axhline(1.0, color="black", linewidth=0.8)
-    ax.set_title("TTL cliff: API saving of 967k versus 250k")
-    ax.set_ylabel("High / low")
-    fig.tight_layout()
-    fig.savefig(figures / "ttl_cliff.png")
-    plt.close(fig)
+    labels = ["1h cache\nidle off", "1h cache\nidle on", "5m cache\n7-minute gaps"]
+    fig, ax = axes((9.4, 5.2))
+    heights = [by_name[name]["api_saving"] for name in names]
+    bars = ax.bar(labels, heights, color=[navy, clay, green], width=0.62)
+    ax.axhline(1.0, color=ink, linewidth=1)
+    title(ax, "Pauses change the answer")
+    ax.set_ylabel("API cost, 967k / 250k", labelpad=8)
+    ax.set_ylim(0, max(heights) * 1.18)
+    for bar, height in zip(bars, heights):
+        ax.text(bar.get_x() + bar.get_width() / 2, height + 0.06, f"{height:.2f}x", ha="center", va="bottom", fontsize=11)
+    finish(fig, figures / "ttl_cliff.png")
 
     compound = simulate(replace(Assumptions(), window=250_000, pct=0.25))
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(_context(hi), label="about 967k", linewidth=1)
-    ax.plot(_context(compound), label="window 250k and 25% (62.5k)", linewidth=1)
-    ax.set_title("Compounding: two knobs together are not a 250k experiment")
-    ax.set_xlabel("Model request")
-    ax.set_ylabel("Prompt tokens")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "compounding_sawtooth.png")
-    plt.close(fig)
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(_context(hi), color=navy, linewidth=1.6, label="about 967k")
+    ax.plot(_context(compound), color=clay, linewidth=1.6, label="250k window and 25% (62.5k)")
+    title(ax, "Two knobs together are not a 250k experiment")
+    ax.set_xlabel("Model request", labelpad=8)
+    ax.set_ylabel("Prompt size", labelpad=8)
+    ax.yaxis.set_major_formatter(tokens)
+    ax.set_ylim(0, 1_150_000)
+    legend_side(ax)
+    finish(fig, figures / "compounding_sawtooth.png")
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = axes((9.4, 5.2))
     reads = ["S7-0.1", "S7-0.05", "S7-0.025"]
     ax.plot(
         [0.1, 0.05, 0.025],
         [by_name[name]["api_saving"] for name in reads],
+        color=navy,
         marker="o",
+        linewidth=2.2,
         label="API-equivalent",
     )
     ax.plot(
         [0.1, 0.05, 0.025],
         [by_name[name]["raw_prompt_saving"] for name in reads],
+        color=clay,
         marker="o",
+        linewidth=2.2,
         label="raw prompt",
     )
-    ax.set_title("Cheaper cache reads shrink the priced saving")
-    ax.set_xlabel("Cache read multiplier")
-    ax.set_ylabel("967k cost / 250k cost")
-    ax.invert_xaxis()
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "sensitivity_cache_hit.png")
-    plt.close(fig)
+    title(ax, "Cheaper cache reads shrink the priced saving")
+    ax.set_xlabel("Cache-read price, as a fraction of input", labelpad=8)
+    ax.set_ylabel("967k cost / 250k cost", labelpad=8)
+    ax.set_xticks([0.025, 0.05, 0.1])
+    ax.legend(frameon=False, loc="upper left")
+    finish(fig, figures / "sensitivity_cache_hit.png")
 
     short_hi = simulate(Assumptions(user_turns=3, calls_per_turn=10))
     short_lo = simulate(replace(short_hi.assumptions, pct=0.25))
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(_cumsum(short_hi, "raw_prompt"), label="about 967k, no compaction")
-    ax.plot(_cumsum(short_lo, "raw_prompt"), label="250k, also no compaction")
-    ax.set_title("Short bugfix: both triggers do nothing, so the lines match")
-    ax.set_xlabel("Model request")
-    ax.set_ylabel("Cumulative prompt tokens")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(figures / "short_session.png")
-    plt.close(fig)
+    fig, ax = axes((9.4, 5.2))
+    ax.plot(_cumsum(short_hi, "raw_prompt"), color=navy, linewidth=2.4, label="about 967k")
+    ax.plot(_cumsum(short_lo, "raw_prompt"), color=clay, linewidth=2.4, linestyle=(0, (1, 1.4)), label="250k")
+    title(ax, "A short bugfix never reaches either trigger")
+    ax.set_xlabel("Model request", labelpad=8)
+    ax.set_ylabel("Cumulative prompt tokens", labelpad=8)
+    ax.yaxis.set_major_formatter(millions)
+    ax.legend(frameon=False, loc="upper left")
+    finish(fig, figures / "short_session.png")
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = axes((9.4, 5.2))
     triggers = [row["trigger"] for row in curve]
-    ax.plot(triggers, [row["api"] for row in curve])
-    ax.set_title("Trigger sweep at the standard 0.1x read price")
-    ax.set_xlabel("Trigger tokens")
-    ax.set_ylabel("API-equivalent units")
-    fig.tight_layout()
-    fig.savefig(figures / "threshold_sweep.png")
-    plt.close(fig)
+    ax.plot(triggers, [row["api"] for row in curve], color=navy, linewidth=2.2)
+    best = summary["eoq"]["simulated_best_10k_grid"]["0.1"]
+    ax.scatter([best["best_trigger"]], [best["best_api"]], color=clay, s=46, zorder=4)
+    title(ax, "Standard 0.1x reads, cheapest near 120k")
+    ax.set_xlabel("Compaction trigger", labelpad=8)
+    ax.set_ylabel("API-equivalent cost of the session", labelpad=8)
+    ax.xaxis.set_major_formatter(tokens)
+    ax.yaxis.set_major_formatter(millions)
+    ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
+    finish(fig, figures / "threshold_sweep.png")
 
 
 def write_outputs(out: Path) -> dict:

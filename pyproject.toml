@@ -1,7 +1,7 @@
 [project]
 name = "cc-usage-study"
 version = "0.1.0"
-description = "Reproducible study of Claude Code token usage and auto-compaction thresholds"
+description = "When Claude Code auto-compaction saves tokens, and when it does not"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
