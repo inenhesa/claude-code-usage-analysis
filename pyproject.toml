@@ -1,24 +1,25 @@
 [project]
 name = "cc-usage-study"
 version = "0.1.0"
-description = "Does compacting Claude Code earlier actually save usage? Caching model, offline log analyzer, and benchmark suite."
+description = "Claude Code usage analysis: live Opus 5.5 benchmarks across CLI, T3 Code, and Claude Desktop, compaction caching model, and offline log analyzer."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [{name = "Ilja Nevolin"}]
-
-[project.urls]
-Homepage = "https://github.com/inevolin/claude-code-compaction-study"
-Repository = "https://github.com/inevolin/claude-code-compaction-study"
 dependencies = ["matplotlib>=3.8"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
+[project.urls]
+Homepage = "https://github.com/inevolin/claude-code-usage-analysis"
+Repository = "https://github.com/inevolin/claude-code-usage-analysis"
+
 [project.scripts]
 cc-usage-simulate = "cc_usage_study.simulate:main"
 cc-usage-analyze = "cc_usage_study.analyze:main"
 cc-usage-benchmark = "cc_usage_study.benchmark:main"
+cc-usage-experiments = "cc_usage_study.experiments:main"
 
 [build-system]
 requires = ["setuptools>=68"]
