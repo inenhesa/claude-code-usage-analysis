@@ -165,23 +165,189 @@ def _usd(api_units: float, usd_per_million: float) -> float:
     return round(api_units * usd_per_million / 1_000_000, 2)
 
 
-def list_price_anchor(by_name: dict, eoq: dict) -> dict:
-    """Published API list price for one modeled long session. Not the 5-hour meter."""
+def _at_trigger(base: Assumptions, trigger: int | None) -> Assumptions:
+    """Pin the compaction trigger without using the absolute-window floor.
+
+    ``window`` cannot be set below 100,000. ``default_trigger`` can, which is
+    how a sweep reaches the thrash zone. None leaves the model's own default.
+    """
+    return replace(base, window=None, pct=None, default_trigger=trigger)
+
+
+def _session_cost(assumptions: Assumptions) -> dict:
+    result = simulate(assumptions)
+    totals = result.totals()
+    return {
+        "trigger": result.trigger_tokens,
+        "api": result.cost("api"),
+        "prompt_tokens": totals["prompt_tokens"],
+        "compactions": result.compactions,
+    }
+
+
+def _pick_best(points: list[dict]) -> dict:
+    """Lowest API cost. Ties prefer 180k, then anything in 150k-200k."""
+    lowest = min(point["api"] for point in points)
+    tied = [point for point in points if point["api"] <= lowest * (1 + 1e-12)]
+    exact = [point for point in tied if point["trigger"] == 180_000]
+    if exact:
+        return exact[0]
+    band = [point for point in tied if 150_000 <= point["trigger"] <= 200_000]
+    if band:
+        return min(band, key=lambda point: abs(point["trigger"] - 180_000))
+    return min(tied, key=lambda point: (point["api"], -point["trigger"]))
+
+
+def _change(alternative: float, baseline: float) -> float:
+    return (alternative - baseline) / baseline * 100.0
+
+
+def use_case_sweet_spots() -> list[dict]:
+    """Best trigger for each everyday workflow. Every figure is from simulate()."""
+    wide = list(range(50_000, 460_000, 10_000)) + [967_000]
+    small_model = list(range(40_000, 210_000, 10_000))
+    gaps = ((12, 75.0), (24, 75.0), (36, 75.0), (48, 75.0))
+    specs = [
+        {
+            "id": "deep_0_1",
+            "workflow": "Deep feature build, standard reads",
+            "base": Assumptions(cache_read_multiplier=0.1),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Deep coding (0.1x reads) -> {k}k sweet spot",
+            "practice": "One knob near {k}k. Sonnet 5 and Opus 4.7 read prices.",
+        },
+        {
+            "id": "deep_0_05",
+            "workflow": "Deep feature build, Opus 5.5 / Sonnet 5.5",
+            "base": Assumptions(cache_read_multiplier=0.05),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Deep coding (Opus/Sonnet 5.5) -> {k}k sweet spot",
+            "practice": "One knob near {k}k. This is the 150k-200k band.",
+        },
+        {
+            "id": "marathon_0_05",
+            "workflow": "Marathon refactor, 150 turns",
+            "base": Assumptions(user_turns=150, tail=2_000, cache_read_multiplier=0.05),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Marathon refactor (150 turns) -> {k}k sweet spot",
+            "practice": "Longer work still wants the same band, near {k}k.",
+        },
+        {
+            "id": "heavy_memory_0_05",
+            "workflow": "Heavy file reads, big working memory",
+            "base": Assumptions(
+                tail=10_000,
+                reinjected_tokens=30_000,
+                user_turns=40,
+                calls_per_turn=6,
+                cache_read_multiplier=0.05,
+            ),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Heavy file reads / big memory -> {k}k sweet spot",
+            "practice": "Heavier memory moves the valley to {k}k. Do not copy a tiny trigger.",
+        },
+        {
+            "id": "unpinned_rules_0_05",
+            "workflow": "Rules only in the chat, 8 repairs per compact",
+            "base": Assumptions(rework_calls=8, rework_tail=8_000, cache_read_multiplier=0.05),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Unpinned rules (8 repairs/compact) -> {k}k sweet spot",
+            "practice": "Put rules in root CLAUDE.md first. Without that, the valley jumps to {k}k.",
+        },
+        {
+            "id": "breaks_idle_0_05",
+            "workflow": "Workday with four long breaks, idle compaction on",
+            "base": Assumptions(
+                long_gaps=gaps,
+                idle_compaction=True,
+                cache_read_multiplier=0.05,
+            ),
+            "triggers": wide,
+            "chart_kind": "sweet",
+            "chart_template": "Long coffee breaks (idle compact on) -> {k}k sweet spot",
+            "practice": "Idle compaction already summarizes a big warm cache. Valley is {k}k.",
+        },
+        {
+            "id": "bugfix",
+            "workflow": "Quick bugfix, one pull request",
+            "base": Assumptions(user_turns=3, calls_per_turn=10),
+            "triggers": wide,
+            "chart_kind": "caution",
+            "caution_trigger": 100_000,
+            "chart_template": "Quick bugfix forced to 100k (180k matches default)",
+            "practice": "Use /clear between unrelated tasks. Forcing 100k costs more. 180k changes nothing.",
+        },
+        {
+            "id": "context_200k",
+            "workflow": "200k-context model",
+            "base": Assumptions(context_window=200_000),
+            "triggers": small_model,
+            "chart_kind": "caution",
+            "caution_trigger": 50_000,
+            "chart_template": "200k model forced down to 50k",
+            "practice": "Leave the default. A 40k or 50k trigger thrashes.",
+        },
+    ]
+    rows = []
+    for spec in specs:
+        base = spec["base"]
+        default = _session_cost(_at_trigger(base, None))
+        points = [_session_cost(_at_trigger(base, trigger)) for trigger in spec["triggers"]]
+        # The model's own default may already be in the list. Keep one copy.
+        by_trigger = {point["trigger"]: point for point in points}
+        by_trigger[default["trigger"]] = default
+        best = _pick_best(list(by_trigger.values()))
+        row = {
+            "id": spec["id"],
+            "workflow": spec["workflow"],
+            "best_trigger": best["trigger"],
+            "default_trigger": default["trigger"],
+            "best_api": best["api"],
+            "default_api": default["api"],
+            "best_prompt_tokens": best["prompt_tokens"],
+            "default_prompt_tokens": default["prompt_tokens"],
+            "compactions_at_best": best["compactions"],
+            "compactions_at_default": default["compactions"],
+            "cost_change_pct": _change(best["api"], default["api"]),
+            "prompt_change_pct": _change(best["prompt_tokens"], default["prompt_tokens"]),
+            "practice": spec["practice"].format(k=best["trigger"] // 1000),
+        }
+        if spec["chart_kind"] == "sweet":
+            row["chart_label"] = spec["chart_template"].format(k=best["trigger"] // 1000)
+            row["chart_change_pct"] = row["cost_change_pct"]
+        else:
+            caution = _session_cost(_at_trigger(base, spec["caution_trigger"]))
+            row["caution_trigger"] = caution["trigger"]
+            row["caution_api"] = caution["api"]
+            row["caution_change_pct"] = _change(caution["api"], default["api"])
+            row["chart_label"] = spec["chart_template"]
+            row["chart_change_pct"] = row["caution_change_pct"]
+            if spec["id"] == "context_200k":
+                low = _session_cost(_at_trigger(base, 40_000))
+                row["trigger_40k_change_pct"] = _change(low["api"], default["api"])
+        rows.append(row)
+    return rows
+
+
+def list_price_anchor(use_cases: list[dict]) -> dict:
+    """Published API list price for the deep-feature sweet spots. Not the 5-hour meter."""
+    by_id = {row["id"]: row for row in use_cases}
     sonnet_rate = _require_weight_match("claude-sonnet-5", 0.1)
     opus_rate = _require_weight_match("claude-opus-5-5", 0.05)
-    standard = eoq["simulated_best_10k_grid"]["0.1"]
-    opus_reads = eoq["simulated_best_10k_grid"]["0.05"]
-    sonnet_default = by_name["S1"]["api_hi"]
-    sonnet_250k = by_name["S1"]["api_lo"]
-    opus_default = by_name["S7-0.05"]["api_hi"]
+    standard = by_id["deep_0_1"]
+    opus = by_id["deep_0_05"]
     return {
         "label": "Published API list price applied to simulated base-input equivalents. Not a subscription meter.",
         "sonnet_5": {
             "model": "claude-sonnet-5",
             "input_usd_per_million": sonnet_rate,
             "cache_read_multiplier": 0.1,
-            "default_967k_usd": _usd(sonnet_default, sonnet_rate),
-            "trigger_250k_usd": _usd(sonnet_250k, sonnet_rate),
+            "default_967k_usd": _usd(standard["default_api"], sonnet_rate),
             "sweet_spot_trigger": standard["best_trigger"],
             "sweet_spot_usd": _usd(standard["best_api"], sonnet_rate),
         },
@@ -189,9 +355,9 @@ def list_price_anchor(by_name: dict, eoq: dict) -> dict:
             "model": "claude-opus-5-5",
             "input_usd_per_million": opus_rate,
             "cache_read_multiplier": 0.05,
-            "default_967k_usd": _usd(opus_default, opus_rate),
-            "sweet_spot_trigger": opus_reads["best_trigger"],
-            "sweet_spot_usd": _usd(opus_reads["best_api"], opus_rate),
+            "default_967k_usd": _usd(opus["default_api"], opus_rate),
+            "sweet_spot_trigger": opus["best_trigger"],
+            "sweet_spot_usd": _usd(opus["best_api"], opus_rate),
         },
     }
 
@@ -202,6 +368,7 @@ def build_summary() -> dict:
     s1_hi = simulate(Assumptions())
     s1_lo = simulate(replace(Assumptions(), pct=0.25))
     eoq = eoq_grid()
+    use_cases = use_case_sweet_spots()
     return {
         "disclaimer": (
             "Model output under stated assumptions. Not a measurement of any Claude account, "
@@ -218,7 +385,8 @@ def build_summary() -> dict:
         "s1_totals": {"hi": s1_hi.totals(), "lo": s1_lo.totals()},
         "zero_effect_control": zero_effect_control(),
         "eoq": eoq,
-        "list_price": list_price_anchor(by_name, eoq),
+        "use_cases": use_cases,
+        "list_price": list_price_anchor(use_cases),
     }
 
 
@@ -313,33 +481,42 @@ def write_figures(summary: dict, out: Path) -> None:
 
     teal = "#0b6e6a"
     coral = "#e23b2f"
-    token_drop = (1 - by_name["S1"]["prompt_lo"] / by_name["S1"]["prompt_hi"]) * 100
-    cost_drop = (1 - by_name["S1"]["api_lo"] / by_name["S1"]["api_hi"]) * 100
+    deep_reads = next(row for row in summary["use_cases"] if row["id"] == "deep_0_05")
+    sweet_trigger = deep_reads["best_trigger"]
+    sweet_run = simulate(_at_trigger(Assumptions(cache_read_multiplier=0.05), sweet_trigger))
+    default_run = simulate(_at_trigger(Assumptions(cache_read_multiplier=0.05), None))
+    token_drop = (1 - sweet_run.totals()["prompt_tokens"] / default_run.totals()["prompt_tokens"]) * 100
+    cost_drop = (1 - sweet_run.cost("api") / default_run.cost("api")) * 100
     fig, ax = axes((10.2, 5.6))
-    ax.fill_between(range(len(_context(hi))), _context(hi), color=navy, alpha=0.13, linewidth=0)
-    ax.fill_between(range(len(_context(lo))), _context(lo), color=teal, alpha=0.16, linewidth=0)
+    ax.fill_between(range(len(_context(default_run))), _context(default_run), color=navy, alpha=0.13, linewidth=0)
+    ax.fill_between(range(len(_context(sweet_run))), _context(sweet_run), color=teal, alpha=0.16, linewidth=0)
     ax.plot(
-        _context(hi),
+        _context(default_run),
         color=navy,
         linewidth=2.0,
-        label=f"Default ~967k: compacts {hi.compactions} times",
+        label=f"Default ~967k: compacts {default_run.compactions} times",
     )
     ax.plot(
-        _context(lo),
+        _context(sweet_run),
         color=teal,
         linewidth=2.0,
-        label=f"Early trigger 250k: compacts {lo.compactions} times",
+        label=f"Sweet spot {sweet_trigger // 1000}k: compacts {sweet_run.compactions} times",
     )
-    ax.set_title("Why 3x fewer tokens only saves about 2x in cost", loc="left", pad=36)
+    ax.set_title(
+        f"Default (~967k) vs. the {sweet_trigger // 1000}k sweet spot in one 60-turn session",
+        loc="left",
+        pad=36,
+    )
     ax.text(
         0.0,
         1.02,
         (
-            "Prompt caching discounts re-reads by 90-95%. "
-            f"A {token_drop:.0f}% token drop becomes a {cost_drop:.0f}% cost drop."
+            "Cutting peak context trims raw prompt tokens by "
+            f"~{token_drop:.0f}% and estimated API cost by ~{cost_drop:.0f}% "
+            "(caching makes re-reads 90-95% cheaper)."
         ),
         transform=ax.transAxes,
-        fontsize=12,
+        fontsize=11,
         color="#344054",
         clip_on=False,
     )
@@ -375,20 +552,10 @@ def write_figures(summary: dict, out: Path) -> None:
         ax.scatter([block["best_trigger"]], [best_relative], color=color, s=48, zorder=4)
         valleys.append((block["best_trigger"], best_relative, color))
     ax.axhline(100, color="#98a2b3", linestyle="--", linewidth=1.0, zorder=1)
-    ax.axvline(250_000, color="#98a2b3", linestyle="--", linewidth=1.0, zorder=1)
     ax.text(
         392_000,
         101.4,
         "Default ~967k = 100% baseline",
-        ha="right",
-        va="bottom",
-        fontsize=11,
-        color="#667085",
-    )
-    ax.text(
-        247_000,
-        103.2,
-        "25% of 1M",
         ha="right",
         va="bottom",
         fontsize=11,
@@ -424,7 +591,7 @@ def write_figures(summary: dict, out: Path) -> None:
             color=color,
             annotation_clip=False,
         )
-    title(ax, "There is a sweet spot (and compacting too low turns the cost back up)")
+    title(ax, "Where the auto-compaction sweet spot sits across Claude models")
     ax.set_xlabel("Compaction trigger", labelpad=32)
     ax.annotate(
         "Too low (<100k): thrashing",
@@ -440,54 +607,25 @@ def write_figures(summary: dict, out: Path) -> None:
     )
     ax.set_ylabel("Session cost, % of the ~967k default", labelpad=8)
     ax.xaxis.set_major_formatter(tokens)
-    ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
+    ax.set_xticks([100_000, 150_000, 200_000, 300_000, 400_000])
     ax.set_ylim(33, 108)
     legend_side(ax)
     finish(fig, figures / "eoq_curve.png")
 
-    def cost_change(row: dict) -> float:
-        return (row["api_lo"] - row["api_hi"]) / row["api_hi"] * 100
-
-    def change_label(change: float, saving: float) -> str:
+    def change_label(change: float) -> str:
         rounded = int(round(change))
         if rounded == 0:
-            return "0% (never compacts)"
+            return "0%"
         if rounded > 0:
             return f"+{rounded}% MORE expensive"
-        if saving >= 2:
-            return f"{rounded}% ({saving:.1f}x cheaper)"
-        if abs(rounded) <= 5:
-            return f"{rounded}% (savings wiped out)"
+        times = 100.0 / (100.0 + change)
+        if times >= 2:
+            return f"{rounded}% ({times:.1f}x cheaper)"
         return f"{rounded}%"
 
-    def sweet_spot(read_key: str, baseline_name: str, caption: str) -> tuple[str, float, float]:
-        block = summary["eoq"]["simulated_best_10k_grid"][read_key]
-        baseline = by_name[baseline_name]["api_hi"]
-        change = (block["best_api"] - baseline) / baseline * 100
-        saving = baseline / block["best_api"]
-        trigger = int(block["best_trigger"] / 1000)
-        return caption.format(trigger=trigger), change, saving
-
-    sweet_rows = [
-        sweet_spot("0.1", "S1", "Sweet spot: {trigger}k on standard reads"),
-        sweet_spot("0.05", "S7-0.05", "Sweet spot: {trigger}k on Opus/Sonnet 5.5"),
-    ]
-    scenario_rows = [
-        ("Long session, 250k vs ~967k", "S1"),
-        ("Hour-long breaks, idle compact on", "S4b"),
-        ("Rules forgotten, 15 repairs", "S3-15"),
-        ("Short bugfix", "S2"),
-        ("Short bugfix forced to 100k", "S2b"),
-        ("Both knobs: 62.5k vs 250k alone", "S8b"),
-        ("25% on a 200k model (50k)", "S6"),
-    ]
-    named_rows = [
-        (label, cost_change(by_name[name]), by_name[name]["api_saving"]) for label, name in scenario_rows
-    ]
-    rows = sweet_rows + named_rows
-    compare = [(label, None) for label, _, _ in rows]
-    changes = [change for _, change, _ in rows]
-    labels = [change_label(change, saving) for _, change, saving in rows]
+    compare = [(row["chart_label"], None) for row in summary["use_cases"]]
+    changes = [row["chart_change_pct"] for row in summary["use_cases"]]
+    labels = [change_label(change) for change in changes]
     fig, ax = axes((11.8, 7.2))
     positions = list(range(len(compare)))
     colors = [teal if change <= 0 else coral for change in changes]
@@ -503,7 +641,7 @@ def write_figures(summary: dict, out: Path) -> None:
         ax.text(label_x, index, text, va="center", ha="left", fontsize=12, color=color, clip_on=False)
     ax.set_xlim(min(changes) - 28, label_x + 148)
     ax.set_xlabel("Change in estimated API cost. Left of zero is cheaper. Right costs more.", labelpad=8)
-    title(ax, "When compacting earlier saves money, and when it backfires")
+    title(ax, "Sweet spot by workflow, versus leaving the default alone")
     finish(fig, figures / "scenario_comparison.png")
 
     amnesia = [row for row in summary["scenarios"] if row["name"].startswith("S3-")]
@@ -640,18 +778,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     args = parser.parse_args(argv)
     summary = write_outputs(args.out)
-    s1 = summary["s1"]
-    print("S1 about-967k vs 25% of 1M (physical caching)")
-    print(
-        f"  API {s1['api_hi']:.0f} vs {s1['api_lo']:.0f} (saving {s1['api_saving']:.2f}x)"
-    )
-    print(
-        f"  raw prompt {s1['prompt_hi']:.0f} vs {s1['prompt_lo']:.0f} "
-        f"(saving {s1['raw_prompt_saving']:.2f}x)"
-    )
-    print(
-        f"  compactions {s1['compactions_hi']} vs {s1['compactions_lo']}"
-    )
+    print("Use-case sweet spots (cost change versus that workflow's default):")
+    for row in summary["use_cases"]:
+        print(
+            f"  {row['id']}: best {row['best_trigger']} "
+            f"({row['cost_change_pct']:+.1f}%) chart {row['chart_change_pct']:+.1f}% "
+            f"[{row['chart_label']}]"
+        )
     best = summary["eoq"]["simulated_best_10k_grid"]
     print(
         "EOQ grid best triggers: "

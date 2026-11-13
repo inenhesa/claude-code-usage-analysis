@@ -54,12 +54,23 @@ def test_list_price_anchor_uses_published_rates():
     assert prices["sonnet_5"]["sweet_spot_trigger"] == sweet["best_trigger"]
     opus_default = next(row["api_hi"] for row in summary["scenarios"] if row["name"] == "S7-0.05")
     assert prices["opus_5_5"]["default_967k_usd"] == round(opus_default * opus_rate / 1_000_000, 2)
+    assert "trigger_250k_usd" not in prices["sonnet_5"]
+    by_id = {row["id"]: row for row in summary["use_cases"]}
+    assert by_id["deep_0_1"]["best_trigger"] == 120_000
+    assert by_id["deep_0_05"]["best_trigger"] == 160_000
+    assert by_id["deep_0_1"]["best_trigger"] == prices["sonnet_5"]["sweet_spot_trigger"]
+    assert by_id["deep_0_05"]["best_trigger"] == prices["opus_5_5"]["sweet_spot_trigger"]
+    assert by_id["heavy_memory_0_05"]["best_trigger"] > by_id["deep_0_05"]["best_trigger"]
+    assert by_id["unpinned_rules_0_05"]["best_trigger"] > by_id["heavy_memory_0_05"]["best_trigger"]
+    assert by_id["context_200k"]["default_trigger"] == 200_000
+    assert by_id["context_200k"]["chart_change_pct"] > 100
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for amount in (
         prices["sonnet_5"]["default_967k_usd"],
-        prices["sonnet_5"]["trigger_250k_usd"],
         prices["sonnet_5"]["sweet_spot_usd"],
         prices["opus_5_5"]["default_967k_usd"],
         prices["opus_5_5"]["sweet_spot_usd"],
     ):
         assert f"${amount:.2f}" in readme
+    for case_id in ("deep_0_1", "deep_0_05", "heavy_memory_0_05", "unpinned_rules_0_05"):
+        assert f"{by_id[case_id]['best_trigger'] // 1000}k" in readme
