@@ -1,0 +1,7 @@
+{
+  "id": "keep_currency",
+  "title": "Round tax half up and leave the currency code alone",
+  "prompt_file": "prompt.txt",
+  "score": ["python", "-m", "pytest", "-q", "test_tax.py"],
+  "editable": ["tax.py"]
+}

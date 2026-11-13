@@ -1,0 +1,1 @@
+Fix round_tax() in tax.py so a 20 percent tax rounds half up to the nearest cent. int() truncation is the bug. The constraint that must survive the whole session: CURRENCY stays "EUR". Do not add files. Do not change test_tax.py. Run the tests and stop when they pass.

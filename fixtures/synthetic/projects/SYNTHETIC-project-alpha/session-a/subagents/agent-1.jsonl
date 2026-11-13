@@ -1,0 +1,1 @@
+{"type":"assistant","sessionId":"synthetic-subagent-1","timestamp":"2026-09-01T11:06:00Z","uuid":"s-1","message":{"id":"msg_s1","role":"assistant","model":"synthetic-model","usage":{"input_tokens":3,"output_tokens":4,"cache_creation_input_tokens":10,"cache_read_input_tokens":20}}}

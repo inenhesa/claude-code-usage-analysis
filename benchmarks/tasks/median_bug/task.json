@@ -1,0 +1,7 @@
+{
+  "id": "median_bug",
+  "title": "Fix the median of an even-length list",
+  "prompt_file": "prompt.txt",
+  "score": ["python", "-m", "pytest", "-q", "test_stats.py"],
+  "editable": ["stats.py"]
+}

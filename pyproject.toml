@@ -1,0 +1,28 @@
+[project]
+name = "cc-usage-study"
+version = "0.1.0"
+description = "Reproducible study of Claude Code token usage and auto-compaction thresholds"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{name = "Ilja Nevolin"}]
+dependencies = ["matplotlib>=3.8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+cc-usage-simulate = "cc_usage_study.simulate:main"
+cc-usage-analyze = "cc_usage_study.analyze:main"
+cc-usage-benchmark = "cc_usage_study.benchmark:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--ignore=benchmarks --ignore=fixtures"

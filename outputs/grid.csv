@@ -1,0 +1,6 @@
+scenario,threshold_fraction,label,threshold_tokens,threshold_fraction_of_window,productive_turns,rework_turns,compactions,prompt_tokens,input_tokens,cache_read_tokens,cache_write_tokens,output_tokens,api_equivalent_cost,peak_prompt_tokens,warnings
+long_session,0.95,long_session@0.95,950000,0.95,120,0,2,59092000,0,53803500,5288500,244000,17177350.0,945000,
+long_session,0.75,long_session@0.75,750000,0.75,120,0,3,46893000,0,42197000,4696000,246000,14841700.0,747000,
+long_session,0.50,long_session@0.50,500000,0.5,120,0,5,33655000,0,29586000,4069000,250000,12346600.0,493000,
+long_session,0.25,long_session@0.25,250000,0.25,120,0,11,20531000,0,17013500,3517500,262000,10046350.0,251000,
+long_session,0.10,long_session@0.10,100000,0.1,120,0,39,12383000,0,8784300,3598700,318000,9665830.0,97000,

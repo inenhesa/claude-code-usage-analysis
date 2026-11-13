@@ -1,0 +1,1 @@
+Fix last_n() in slices.py. It must return the last n items, or the whole list when n is longer than the list. n == 0 returns an empty list. A negative n raises ValueError. Do not add files. Do not change test_slice.py. Run the tests and stop when they pass.

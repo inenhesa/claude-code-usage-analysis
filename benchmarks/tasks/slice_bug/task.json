@@ -1,0 +1,7 @@
+{
+  "id": "slice_bug",
+  "title": "Fix last_n so it keeps n items",
+  "prompt_file": "prompt.txt",
+  "score": ["python", "-m", "pytest", "-q", "test_slice.py"],
+  "editable": ["slices.py"]
+}
