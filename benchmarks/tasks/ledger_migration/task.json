@@ -1,0 +1,15 @@
+{
+  "id": "ledger_migration",
+  "schema": 2,
+  "smoke": false,
+  "generator": {"module": "benchmarks.generators.gen_ledger_migration", "seed": 1337, "scale": "S"},
+  "variants": ["P-claude", "P-prompt", "P-doc", "P-hook"],
+  "prompt_file": "prompt.txt",
+  "max_turns": 400,
+  "timeout_s": 14400,
+  "score_visible": ["python", "-m", "pytest", "-q", "tests/visible"],
+  "hidden_dir": "hidden",
+  "checkers": ["INV-01", "INV-02"],
+  "probe_ids": ["INV-01", "INV-02", "INV-03", "INV-04", "INV-05", "INV-06", "INV-07", "INV-08", "INV-09", "INV-10", "INV-11", "INV-12"],
+  "min_expected_peak_context": 400000
+}

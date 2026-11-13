@@ -1,0 +1,1 @@
+{"entrypoint": "cli", "isSidechain": false, "message": {"id": "msg_e2", "model": "SYNTHETIC-claude-sonnet-5", "role": "assistant", "usage": {"cache_creation_input_tokens": 9000, "cache_read_input_tokens": 3000, "input_tokens": 5, "output_tokens": 300}}, "requestId": "req_e2", "sessionId": "syn-edge-1", "timestamp": "2026-11-01T10:03:30Z", "type": "assistant", "uuid": "e2"}

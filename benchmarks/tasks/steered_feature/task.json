@@ -1,0 +1,15 @@
+{
+  "id": "steered_feature",
+  "schema": 2,
+  "smoke": false,
+  "generator": {"module": "benchmarks.generators.gen_steered_feature", "seed": 1337, "scale": "S"},
+  "variants": ["P-doc", "P-hook"],
+  "prompt_file": "prompt.txt",
+  "turns_file": "checkpoints.jsonl",
+  "max_turns": 400,
+  "timeout_s": 14400,
+  "score_visible": ["python", "-m", "pytest", "-q", "tests/visible"],
+  "hidden_dir": "hidden",
+  "checkers": ["D"],
+  "probe_ids": ["D1", "D2", "D3", "D4", "D5", "D6"]
+}

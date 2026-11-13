@@ -1,0 +1,1 @@
+Read docs/ARCHITECTURE.md first. Migrate every module in ledgerkit/modules from tuple indexing to the Entry dataclass in ledgerkit/entry.py, in numeric order. Keep public lk_ names. Run tests/visible when you finish. Do not edit the tests or the golden fixtures.

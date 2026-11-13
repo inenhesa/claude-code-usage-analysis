@@ -1,0 +1,1 @@
+Fix the varint encoder, the cache key collision on a shared 16-byte prefix, and the retry backoff that ignores MAX_BACKOFF_S. Do not edit relayd/metrics.py. Decoy tracebacks in the logs are not bugs.

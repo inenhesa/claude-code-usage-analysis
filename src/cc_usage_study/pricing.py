@@ -10,6 +10,8 @@ Also stated in: https://platform.claude.com/docs/en/build-with-claude/prompt-cac
 
 from __future__ import annotations
 
+import re
+
 SNAPSHOT_DATE = "2026-11-13"
 PRICING_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
 
@@ -54,6 +56,40 @@ PRICES_USD_PER_MILLION: dict[str, _Price] = {
 HAIKU_55_SHORT: _Price = (0.10, 0.125, 0.20, 0.01, 0.50)
 HAIKU_55_LONG: _Price = (0.50, 0.625, 1.0, 0.05, 2.50)
 HAIKU_55_LONG_PROMPT_MIN = 100_000
+
+# Fast-mode base input and output, USD per million, from the same pricing page.
+# Cache read and cache write prices in fast mode were not verified. Do not invent them.
+FAST_MODE_INPUT_OUTPUT_USD_PER_MILLION: dict[str, tuple[float, float]] = {
+    "claude-opus-5-5": (8.0, 40.0),
+    "claude-fable-5-2": (16.0, 80.0),
+    "claude-mythos-5-2": (16.0, 80.0),
+    "claude-opus-5": (10.0, 50.0),
+    "claude-opus-4-8": (10.0, 50.0),
+}
+FAST_MODE_CACHE_NOTE = "fast-mode cache pricing is not verified; no cache price estimated"
+
+# Models named 4.7 or later on the pricing page produce about 30% more tokens
+# for the same text. A before/after that crosses this boundary is not a
+# like-for-like token comparison.
+TOKENIZER_GENERATION_NOTE = (
+    "Pricing-page note: Claude 4.7 and later models produce approximately 30% "
+    "more tokens for the same text than earlier models."
+)
+
+# Third-party client-side /usage attribution. Not the server meter.
+# Source: https://www.turboai.dev/blog/claude-code-limits-usage-breakdown-guide
+ATTRIBUTION_WEIGHTS_V2_1_317 = {
+    "read": 1.0,
+    "input": 10.0,
+    "write": 12.5,
+    "output": 50.0,
+    "model_factor": {"haiku": 1.0, "sonnet": 3.0, "opus": 5.0, "fable": 10.0, "unknown": 1.0},
+    "disclaimer": (
+        "Third-party reading of client-side /usage attribution around Claude Code "
+        "v2.1.317. It drives attribution shares in that write-up. It is not the "
+        "server-side five-hour or weekly meter."
+    ),
+}
 
 
 def canonical_model_id(model: str) -> str | None:
@@ -115,6 +151,12 @@ def cache_read_multiplier(model: str | None) -> tuple[float, str]:
 
 
 def price_row(model: str, prompt_tokens: int) -> _Price | None:
+    """Pick a price row for one request.
+
+    Haiku 5.5's long-prompt tier is per request: it applies when that
+    request's prompt is over 100,000 tokens. Do not pass a summed total
+    across calls. A sum over 100,000 would price short calls at the long rate.
+    """
     known = canonical_model_id(model)
     if known is None:
         return None
@@ -123,6 +165,34 @@ def price_row(model: str, prompt_tokens: int) -> _Price | None:
             return HAIKU_55_LONG
         return HAIKU_55_SHORT
     return PRICES_USD_PER_MILLION[known]
+
+
+def tokenizer_generation(model: str) -> str | None:
+    """'4.7+' or 'earlier' for known Claude ids. None if the id is unknown.
+
+    The pricing page says 4.7 and later models produce about 30% more tokens
+    for the same text. This is a label for that warning, not a measurement.
+    """
+    known = canonical_model_id(model)
+    text = known if known is not None else model.strip().lower()
+    if "fable" in text or "mythos" in text:
+        return "4.7+"
+    match = re.search(r"claude-(?:opus|sonnet|haiku)-(\d+)(?:-(\d+))?", text)
+    if not match:
+        return None
+    major = int(match.group(1))
+    minor = int(match.group(2) or 0)
+    if major > 4 or (major == 4 and minor >= 7):
+        return "4.7+"
+    return "earlier"
+
+
+def attribution_family(model: str) -> str:
+    text = (canonical_model_id(model) or model or "").lower()
+    for name in ("fable", "mythos", "opus", "sonnet", "haiku"):
+        if name in text:
+            return "fable" if name == "mythos" else name
+    return "unknown"
 
 
 def estimate_call_usd(
@@ -134,6 +204,7 @@ def estimate_call_usd(
     cache_write_5m_tokens: int | None,
     cache_write_1h_tokens: int | None,
     prompt_tokens: int,
+    speed: str | None = None,
 ) -> tuple[float | None, str | None]:
     """List-price estimate in USD for one API call.
 
@@ -141,6 +212,17 @@ def estimate_call_usd(
     split is missing while cache writes are nonzero. A missing split must
     not be guessed: 5-minute writes are 1.25x and 1-hour writes are 2x.
     """
+    if isinstance(speed, str) and speed.lower() == "fast":
+        known = canonical_model_id(model)
+        rates = FAST_MODE_INPUT_OUTPUT_USD_PER_MILLION.get(known or "")
+        cache_tokens = cache_read_tokens + (cache_write_5m_tokens or 0) + (cache_write_1h_tokens or 0)
+        if rates is None:
+            return None, "fast mode is not in the snapshot for this model; no price estimated"
+        if cache_tokens:
+            return None, FAST_MODE_CACHE_NOTE
+        fast_in, fast_out = rates
+        usd = (input_tokens * fast_in + output_tokens * fast_out) / 1_000_000
+        return usd, None
     row = price_row(model, prompt_tokens)
     if row is None:
         return None, "model not in the published snapshot; no price estimated"

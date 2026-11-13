@@ -1,5 +1,7 @@
 {
   "id": "keep_currency",
+  "schema": 1,
+  "smoke": true,
   "title": "Round tax half up and leave the currency code alone",
   "prompt_file": "prompt.txt",
   "score": ["python", "-m", "pytest", "-q", "test_tax.py"],

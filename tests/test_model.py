@@ -1,157 +1,120 @@
 from dataclasses import replace
 
-import pytest
-
 from cc_usage_study.model import (
-    DEFAULT_ASSUMPTIONS,
-    SHORT_ASSUMPTIONS,
     Assumptions,
     closed_form_prompt_tokens,
+    effective_trigger,
+    eoq_trigger,
+    fixed_compaction_cost,
     simulate,
-    with_threshold,
 )
 
 
-def _toy(**overrides) -> Assumptions:
-    base = dict(
-        context_window=100,
-        threshold_fraction=0.5,
-        turns=3,
-        growth_per_turn=15,
-        output_per_turn=5,
-        system_prompt_tokens=10,
-        project_context_tokens=10,
-        summary_tokens=5,
-        reinjected_tokens=5,
-        compaction_instruction_tokens=2,
-        compaction_output_tokens=3,
-        caching=False,
-        cache_hit_rate=1.0,
-        rework_turns_per_compaction=0,
-        rework_growth_per_turn=15,
-        label="toy",
+def test_effective_trigger_cases():
+    default, warnings = effective_trigger(Assumptions())
+    assert default == 967_000
+    assert warnings == []
+    t3, notes = effective_trigger(Assumptions(window=250_000, reserve=33_000))
+    assert t3 == 217_000
+    assert notes == []
+    compound, notes = effective_trigger(Assumptions(window=250_000, pct=0.25))
+    assert compound == 62_500
+    assert any("compounding" in note for note in notes)
+    # A percentage cannot raise the documented default.
+    capped, _ = effective_trigger(Assumptions(pct=1.0))
+    assert capped == 967_000
+
+
+def test_warm_call_reads_the_previous_prompt_and_writes_the_tail():
+    result = simulate(Assumptions(user_turns=1, calls_per_turn=2, tail=4_000, output_per_call=600))
+    first, second = result.calls
+    assert first.cache_read_tokens == 0
+    assert first.cache_write_tokens == first.prompt_tokens
+    # Second request reads the first prompt and writes the first output plus the new tail.
+    assert second.cache_read_tokens == first.prompt_tokens
+    assert second.cache_write_tokens == first.output_tokens + 4_000
+    assert second.input_tokens == 0
+
+
+def test_closed_form_matches_a_session_that_never_compacts():
+    assumptions = Assumptions(user_turns=5, calls_per_turn=1, tail=100, output_per_call=10, pct=0.99)
+    result = simulate(assumptions)
+    assert result.compactions == 0
+    base = assumptions.system_prompt_tokens + assumptions.project_context_tokens
+    expected = closed_form_prompt_tokens(base=base, growth=100, output=10, turns=5)
+    assert result.totals()["prompt_tokens"] == expected
+
+
+def test_rework_can_trip_the_trigger():
+    assumptions = Assumptions(
+        user_turns=3,
+        calls_per_turn=2,
+        tail=40_000,
+        output_per_call=1_000,
+        window=100_000,
+        reserve=0,
+        rework_calls=2,
+        rework_tail=5_000,
+        summary_min=1_000,
+        reinjected_tokens=1_000,
+        system_prompt_tokens=2_000,
+        project_context_tokens=1_000,
     )
-    base.update(overrides)
-    return Assumptions(**base)
+    result = simulate(assumptions)
+    assert result.compactions >= 1
+    assert result.rework_call_count >= 2
 
 
-def test_closed_form_matches_simulation_when_nothing_compacts():
-    scenario = Assumptions(
-        context_window=1_000_000,
-        threshold_fraction=0.99,
-        turns=5,
-        growth_per_turn=100,
-        output_per_turn=10,
-        system_prompt_tokens=50,
-        project_context_tokens=50,
-        caching=False,
+def test_idle_compaction_requires_the_one_hour_ttl_and_200k():
+    gaps = ((1, 75.0),)
+    small = simulate(
+        Assumptions(user_turns=2, calls_per_turn=1, tail=1_000, long_gaps=gaps, idle_compaction=True)
     )
-    result = simulate(scenario)
-    assert result.compaction_count == 0
-    assert result.total_prompt_tokens == closed_form_prompt_tokens(scenario)
-    assert result.total_prompt_tokens == 2100
-    assert result.total_input_tokens == result.total_prompt_tokens
-    assert result.total_cache_read_tokens == 0
-
-
-def test_prompt_buckets_partition_every_call():
-    result = simulate(DEFAULT_ASSUMPTIONS)
-    for call in result.calls:
-        assert (
-            call.input_tokens + call.cache_read_tokens + call.cache_write_tokens
-            == call.prompt_tokens
-        )
-
-
-def test_enumerated_compaction_without_cache():
-    result = simulate(_toy())
-    kinds = [call.kind for call in result.calls]
-    assert kinds == ["turn", "compaction", "turn", "compaction", "turn"]
-    assert [call.prompt_tokens for call in result.calls] == [35, 42, 45, 52, 45]
-    assert result.total_prompt_tokens == 219
-    assert result.compaction_count == 2
-    assert result.productive_turns == 3
-
-
-def test_cache_does_not_change_raw_prompt_total():
-    uncached = simulate(_toy(caching=False))
-    cached = simulate(_toy(caching=True, cache_hit_rate=1.0))
-    assert cached.total_prompt_tokens == uncached.total_prompt_tokens == 219
-    assert cached.total_cache_read_tokens == 110
-    assert cached.total_cache_write_tokens == 109
-    assert cached.total_input_tokens == 0
-
-
-def test_five_minute_cache_is_cheaper_once_the_prefix_is_reread():
-    # 5-minute writes are 1.25x and reads are 0.1x. Anthropic's pricing note
-    # says that pair pays for itself after one cache read. A session that
-    # never compacts gives the prefix that read.
-    common = dict(
-        context_window=1_000_000,
-        threshold_fraction=0.99,
-        turns=6,
-        growth_per_turn=100,
-        output_per_turn=10,
-        system_prompt_tokens=50,
-        project_context_tokens=50,
-        cache_hit_rate=1.0,
-        cache_read_multiplier=0.1,
-        cache_write_multiplier=1.25,
-        output_multiplier=5.0,
+    assert small.idle_compactions == 0
+    # Build a context over 200k, then idle.
+    large = Assumptions(
+        user_turns=2,
+        calls_per_turn=1,
+        tail=250_000,
+        output_per_call=1_000,
+        long_gaps=gaps,
+        idle_compaction=True,
+        ttl_min=60,
     )
-    cached = simulate(Assumptions(caching=True, **common))
-    uncached = simulate(Assumptions(caching=False, **common))
-    assert cached.compaction_count == 0
-    assert cached.total_prompt_tokens == uncached.total_prompt_tokens
-    assert cached.api_equivalent_cost() < uncached.api_equivalent_cost()
+    # Turn 0 grows context. The gap is before turn 1.
+    hit = simulate(large)
+    assert hit.idle_compactions == 1
+    credits = simulate(replace(large, ttl_min=5))
+    assert credits.idle_compactions == 0
 
 
-def test_rework_turns_are_added_on_top_of_productive_work():
-    result = simulate(_toy(turns=2, rework_turns_per_compaction=1))
-    # Turn 1 stays under the threshold. Turn 2 compacts, then pays one rework
-    # turn, then does the productive turn. Rework is not taken out of ``turns``.
-    assert [call.kind for call in result.calls] == ["turn", "compaction", "rework", "turn"]
-    assert [call.prompt_tokens for call in result.calls] == [35, 42, 45, 65]
-    assert result.productive_turns == 2
-    assert result.rework_turns == 1
-    assert result.compaction_count == 1
+def test_s1_ratios_match_the_reference_simulator():
+    hi = simulate(Assumptions())
+    lo = simulate(replace(Assumptions(), pct=0.25))
+    assert hi.trigger_tokens == 967_000
+    assert lo.trigger_tokens == 250_000
+    assert hi.compactions == 2
+    assert lo.compactions == 10
+    api = hi.cost("api") / lo.cost("api")
+    raw = hi.cost("raw_prompt") / lo.cost("raw_prompt")
+    assert round(api, 2) == 2.06
+    assert round(raw, 2) == 3.05
 
 
-def test_long_session_25_percent_uses_fewer_raw_tokens_than_95():
-    low = simulate(with_threshold(DEFAULT_ASSUMPTIONS, fraction=0.25))
-    high = simulate(with_threshold(DEFAULT_ASSUMPTIONS, fraction=0.95))
-    assert low.compaction_count > high.compaction_count > 0
-    assert low.total_prompt_tokens < high.total_prompt_tokens
-    # The gap in raw tokens is larger than the gap in cache-priced units,
-    # because most of the re-sent prefix is a cache read at 0.1x.
-    raw_ratio = low.total_prompt_tokens / high.total_prompt_tokens
-    price_ratio = low.api_equivalent_cost() / high.api_equivalent_cost()
-    assert raw_ratio < price_ratio < 1
+def test_eoq_formula_is_finite_and_above_the_reset():
+    assumptions = Assumptions()
+    k, reset = fixed_compaction_cost(assumptions)
+    estimate = eoq_trigger(
+        reset_tokens=reset,
+        fixed_compaction_cost=k,
+        growth_per_call=assumptions.tail + assumptions.output_per_call,
+        read_multiplier=0.1,
+    )
+    assert estimate > reset
+    assert 80_000 < estimate < 250_000
 
 
-def test_short_session_high_threshold_never_compacts():
-    high = simulate(with_threshold(SHORT_ASSUMPTIONS, fraction=0.95))
-    low = simulate(with_threshold(SHORT_ASSUMPTIONS, fraction=0.25))
-    assert high.compaction_count == 0
-    assert low.compaction_count >= 1
-    assert "no_compaction" in " ".join(high.warnings)
-
-
-def test_threshold_inside_the_summary_stays_finite():
-    # Threshold 25 is below the reset size of 30, so every later turn compacts
-    # once and then sends anyway. The walk still ends.
-    scenario = _toy(threshold_tokens=25, context_window=100, turns=4)
-    result = simulate(scenario)
-    assert result.productive_turns == 4
-    assert 1 <= result.compaction_count <= 4
-    assert any("request_still_over_threshold" in warning for warning in result.warnings)
-
-
-def test_invalid_hit_rate_is_rejected():
-    with pytest.raises(ValueError):
-        simulate(replace(DEFAULT_ASSUMPTIONS, cache_hit_rate=1.5))
-
-
-def test_absolute_threshold_overrides_fraction():
-    result = simulate(with_threshold(DEFAULT_ASSUMPTIONS, tokens=250_000))
-    assert result.threshold_tokens == 250_000
+def test_attribution_scheme_is_separate_from_api():
+    result = simulate(Assumptions(user_turns=1, calls_per_turn=2))
+    assert result.cost("attribution_v2_1_317") != result.cost("api")
+    assert result.cost("h_zero") < result.cost("read_full")

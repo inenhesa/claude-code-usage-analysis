@@ -1,0 +1,1452 @@
+{
+  "by_day": {
+    "2026-09-01": {
+      "calls": 4,
+      "tokens": {
+        "cache_creation_1h_tokens": 500,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1510,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 8520,
+        "input_tokens": 128,
+        "output_tokens": 99,
+        "prompt_tokens": 10158,
+        "ttl_split_known": false
+      }
+    },
+    "2026-09-08": {
+      "calls": 480,
+      "tokens": {
+        "cache_creation_1h_tokens": 2286200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2286200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 217939400,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 220225600,
+        "ttl_split_known": true
+      }
+    },
+    "2026-09-15": {
+      "calls": 24,
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      }
+    },
+    "2026-10-13": {
+      "calls": 480,
+      "tokens": {
+        "cache_creation_1h_tokens": 2489400,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2489400,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 67897800,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 70387200,
+        "ttl_split_known": true
+      }
+    },
+    "2026-10-15": {
+      "calls": 2,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 250,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 900,
+        "input_tokens": 17,
+        "output_tokens": 48,
+        "prompt_tokens": 1167,
+        "ttl_split_known": false
+      }
+    },
+    "2026-10-20": {
+      "calls": 24,
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      }
+    },
+    "2026-10-21": {
+      "calls": 40,
+      "tokens": {
+        "cache_creation_1h_tokens": 224400,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 224400,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1325200,
+        "input_tokens": 0,
+        "output_tokens": 24000,
+        "prompt_tokens": 1549600,
+        "ttl_split_known": true
+      }
+    },
+    "2026-10-27": {
+      "calls": 89,
+      "tokens": {
+        "cache_creation_1h_tokens": 1642200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1642200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 3295000,
+        "input_tokens": 0,
+        "output_tokens": 53400,
+        "prompt_tokens": 4937200,
+        "ttl_split_known": true
+      }
+    },
+    "2026-11-01": {
+      "calls": 7,
+      "tokens": {
+        "cache_creation_1h_tokens": 22000,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 49300,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 18000,
+        "input_tokens": 23,
+        "output_tokens": 1240,
+        "prompt_tokens": 67323,
+        "ttl_split_known": false
+      }
+    }
+  },
+  "by_entrypoint": {
+    "cli": {
+      "calls": 1120,
+      "tokens": {
+        "cache_creation_1h_tokens": 6807600,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 6816700,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 293609400,
+        "input_tokens": 10,
+        "output_tokens": 670730,
+        "prompt_tokens": 300426110,
+        "ttl_split_known": false
+      }
+    },
+    "sdk-cli": {
+      "calls": 20,
+      "tokens": {
+        "cache_creation_1h_tokens": 112200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 112200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 662600,
+        "input_tokens": 0,
+        "output_tokens": 12000,
+        "prompt_tokens": 774800,
+        "ttl_split_known": true
+      }
+    },
+    "unknown": {
+      "calls": 10,
+      "tokens": {
+        "cache_creation_1h_tokens": 20500,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 39960,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 12420,
+        "input_tokens": 158,
+        "output_tokens": 857,
+        "prompt_tokens": 52538,
+        "ttl_split_known": false
+      }
+    }
+  },
+  "by_model": {
+    "SYNTHETIC-claude-haiku-5-5": {
+      "calls": 2,
+      "list_price_estimate": {
+        "reason": "cache write TTL split missing on at least one call",
+        "usd": null
+      },
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 3200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 3000,
+        "input_tokens": 5,
+        "output_tokens": 110,
+        "prompt_tokens": 6205,
+        "ttl_split_known": false
+      }
+    },
+    "SYNTHETIC-claude-sonnet-5": {
+      "calls": 1140,
+      "list_price_estimate": {
+        "reason": "model not in the published snapshot; no price estimated",
+        "usd": null
+      },
+      "tokens": {
+        "cache_creation_1h_tokens": 6919800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 6928900,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 294272000,
+        "input_tokens": 10,
+        "output_tokens": 682730,
+        "prompt_tokens": 301200910,
+        "ttl_split_known": false
+      }
+    },
+    "claude-haiku-4-5": {
+      "calls": 1,
+      "list_price_estimate": {
+        "note": "per-request list price from the 2026-11-13 snapshot. Not a subscription bill.",
+        "priced_calls": 1,
+        "reason": null,
+        "usd": 0.019253
+      },
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 15000,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 0,
+        "input_tokens": 3,
+        "output_tokens": 100,
+        "prompt_tokens": 15003,
+        "ttl_split_known": true
+      }
+    },
+    "claude-sonnet-5-5": {
+      "calls": 1,
+      "list_price_estimate": {
+        "note": "per-request list price from the 2026-11-13 snapshot. Not a subscription bill.",
+        "priced_calls": 1,
+        "reason": null,
+        "usd": 0.08501
+      },
+      "tokens": {
+        "cache_creation_1h_tokens": 20000,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 20000,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 0,
+        "input_tokens": 5,
+        "output_tokens": 500,
+        "prompt_tokens": 20005,
+        "ttl_split_known": true
+      }
+    },
+    "synthetic-model": {
+      "calls": 6,
+      "list_price_estimate": {
+        "reason": "cache write TTL split missing on at least one call",
+        "usd": null
+      },
+      "tokens": {
+        "cache_creation_1h_tokens": 500,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1760,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 9420,
+        "input_tokens": 145,
+        "output_tokens": 147,
+        "prompt_tokens": 11325,
+        "ttl_split_known": false
+      }
+    }
+  },
+  "by_version": {
+    "SYNTHETIC": {
+      "calls": 1137,
+      "tokens": {
+        "cache_creation_1h_tokens": 6917800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 6917800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 294257000,
+        "input_tokens": 0,
+        "output_tokens": 682200,
+        "prompt_tokens": 301174800,
+        "ttl_split_known": true
+      }
+    },
+    "unknown": {
+      "calls": 13,
+      "tokens": {
+        "cache_creation_1h_tokens": 22500,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 51060,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 27420,
+        "input_tokens": 168,
+        "output_tokens": 1387,
+        "prompt_tokens": 78648,
+        "ttl_split_known": false
+      }
+    }
+  },
+  "cache_rebuilds_main": {
+    "other_miss": 1,
+    "post_compaction_rebuild": 53,
+    "rewritten_tokens": {
+      "other_miss": 57,
+      "post_compaction_rebuild": 1754000,
+      "ttl_expired_rebuild": 0
+    },
+    "ttl_expired_rebuild": 0
+  },
+  "calls": 1150,
+  "compaction_markers": {
+    "count": 56,
+    "post_tokens": [
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      46000,
+      9000
+    ],
+    "pre_tokens": [
+      967400,
+      967000,
+      249800,
+      249400,
+      249400,
+      249400,
+      249400,
+      249400,
+      249400,
+      249400,
+      249400,
+      249400,
+      61200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      60200,
+      250000,
+      120000
+    ],
+    "triggers": [
+      "auto"
+    ]
+  },
+  "compactions": 56,
+  "duplicate_records_dropped": 1143,
+  "excluded_lines": 2,
+  "files": 20,
+  "five_hour_blocks": [
+    {
+      "calls": 3,
+      "end": "2026-09-01T16:01:01Z",
+      "start": "2026-09-01T11:01:01Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 500,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1500,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 8500,
+        "input_tokens": 125,
+        "output_tokens": 95,
+        "prompt_tokens": 10125,
+        "ttl_split_known": false
+      },
+      "weights": {
+        "api": 4450.0,
+        "assumed_1h_writes": true,
+        "attribution_v2_1_317": 33250.0,
+        "h_zero": 3600.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 10125.0,
+        "read_full": 12100.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 480,
+      "end": "2026-09-08T14:00:30Z",
+      "start": "2026-09-08T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 2286200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2286200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 217939400,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 220225600,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 27806340.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 782750700.0,
+        "h_zero": 6012400.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 220225600.0,
+        "read_full": 223951800.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 24,
+      "end": "2026-09-15T14:00:30Z",
+      "start": "2026-09-15T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 537580.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 13026900.0,
+        "h_zero": 347600.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 2037600.0,
+        "read_full": 2247400.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 480,
+      "end": "2026-10-13T14:00:30Z",
+      "start": "2026-10-13T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 2489400,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2489400,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 67897800,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 70387200,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 13208580.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 340245900.0,
+        "h_zero": 6418800.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 70387200.0,
+        "read_full": 74316600.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 2,
+      "end": "2026-10-15T14:01:00Z",
+      "start": "2026-10-15T09:01:00Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 250,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 900,
+        "input_tokens": 17,
+        "output_tokens": 48,
+        "prompt_tokens": 1167,
+        "ttl_split_known": false
+      },
+      "weights": {
+        "api": 847.0,
+        "assumed_1h_writes": true,
+        "attribution_v2_1_317": 6595.0,
+        "h_zero": 757.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 1167.0,
+        "read_full": 1657.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 24,
+      "end": "2026-10-20T14:00:30Z",
+      "start": "2026-10-20T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 537580.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 13026900.0,
+        "h_zero": 347600.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 2037600.0,
+        "read_full": 2247400.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 24,
+      "end": "2026-10-21T14:00:30Z",
+      "start": "2026-10-21T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 165200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 165200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1210000,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 1375200,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 523400.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 11985000.0,
+        "h_zero": 402400.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 1375200.0,
+        "read_full": 1612400.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 89,
+      "end": "2026-10-27T14:00:30Z",
+      "start": "2026-10-27T09:00:30Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 1642200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1642200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 3295000,
+        "input_tokens": 0,
+        "output_tokens": 53400,
+        "prompt_tokens": 4937200,
+        "ttl_split_known": true
+      },
+      "weights": {
+        "api": 3880900.0,
+        "assumed_1h_writes": false,
+        "attribution_v2_1_317": 79477500.0,
+        "h_zero": 3551400.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 4937200.0,
+        "read_full": 6846400.0,
+        "read_multiplier_for_api": 0.1
+      }
+    },
+    {
+      "calls": 4,
+      "end": "2026-11-01T15:00:01Z",
+      "start": "2026-11-01T10:00:01Z",
+      "tokens": {
+        "cache_creation_1h_tokens": 22000,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 31100,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 15000,
+        "input_tokens": 15,
+        "output_tokens": 1030,
+        "prompt_tokens": 46115,
+        "ttl_split_known": false
+      },
+      "weights": {
+        "api": 68865.0,
+        "assumed_1h_writes": true,
+        "attribution_v2_1_317": 1366200.0,
+        "h_zero": 67365.0,
+        "note": "api, read_full, and h_zero are published-price shapes or labeled hypotheses. attribution_v2_1_317 is a third-party client-side reading, not the server meter. None of these is the five-hour bar.",
+        "output_multiplier_for_api": 5.0,
+        "raw_prompt": 46115.0,
+        "read_full": 82365.0,
+        "read_multiplier_for_api": 0.1
+      }
+    }
+  ],
+  "lines": 2424,
+  "main": {
+    "cache_read_share_of_prompt": 0.977108691952971,
+    "calls": 1130,
+    "compactions": 56,
+    "prompt_tokens_per_call": 266422.83805309737,
+    "prompt_tokens_per_session_mean": 27368891.545454547,
+    "prompt_tokens_per_session_median": 687600.0,
+    "sessions": 11,
+    "tokens": {
+      "cache_creation_1h_tokens": 6881100,
+      "cache_creation_5m_tokens": 0,
+      "cache_creation_input_tokens": 6891450,
+      "cache_creation_mismatch": false,
+      "cache_read_input_tokens": 294166200,
+      "input_tokens": 157,
+      "output_tokens": 673773,
+      "prompt_tokens": 301057807,
+      "ttl_split_known": false
+    }
+  },
+  "orphaned_files": 1,
+  "orphaned_only_calls": 0,
+  "other_compact_markers": 0,
+  "output_tokens_note": "Per-step output_tokens can be a placeholder. When output_without_stop_reason_share is high, treat output as a lower bound.",
+  "output_without_stop_reason_share": 0.010434782608695653,
+  "parse_errors": 2,
+  "per_session": [
+    {
+      "calls": 3,
+      "compactions": 1,
+      "entrypoints": [],
+      "first_timestamp": "2026-09-01T11:01:01Z",
+      "last_timestamp": "2026-09-01T11:05:00Z",
+      "models": [
+        "synthetic-model"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-project-alpha",
+      "role": "main",
+      "session_id": "synthetic-session-a",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 500,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1500,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 8500,
+        "input_tokens": 125,
+        "output_tokens": 95,
+        "prompt_tokens": 10125,
+        "ttl_split_known": false
+      }
+    },
+    {
+      "calls": 1,
+      "compactions": 0,
+      "entrypoints": [],
+      "first_timestamp": "2026-09-01T11:06:00Z",
+      "last_timestamp": "2026-09-01T11:06:00Z",
+      "models": [
+        "synthetic-model"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-project-alpha",
+      "role": "subagent",
+      "session_id": "synthetic-subagent-1/agent-1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 10,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 20,
+        "input_tokens": 3,
+        "output_tokens": 4,
+        "prompt_tokens": 33,
+        "ttl_split_known": false
+      }
+    },
+    {
+      "calls": 480,
+      "compactions": 2,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-09-08T09:00:30Z",
+      "last_timestamp": "2026-09-08T13:01:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [
+        46000,
+        46000
+      ],
+      "pre_tokens": [
+        967400,
+        967000
+      ],
+      "project": "SYNTHETIC-01-before-default-95pct",
+      "role": "main",
+      "session_id": "syn-before-1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 2286200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2286200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 217939400,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 220225600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 24,
+      "compactions": 0,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-09-15T09:00:30Z",
+      "last_timestamp": "2026-09-15T09:12:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-01-before-default-95pct",
+      "role": "main",
+      "session_id": "syn-before-2",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 480,
+      "compactions": 10,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-13T09:00:30Z",
+      "last_timestamp": "2026-10-13T13:05:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000
+      ],
+      "pre_tokens": [
+        249800,
+        249400,
+        249400,
+        249400,
+        249400,
+        249400,
+        249400,
+        249400,
+        249400,
+        249400
+      ],
+      "project": "SYNTHETIC-02-after-25pct",
+      "role": "main",
+      "session_id": "syn-after-1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 2489400,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2489400,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 67897800,
+        "input_tokens": 0,
+        "output_tokens": 288000,
+        "prompt_tokens": 70387200,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 2,
+      "compactions": 0,
+      "entrypoints": [],
+      "first_timestamp": "2026-10-15T09:01:00Z",
+      "last_timestamp": "2026-10-15T09:02:00Z",
+      "models": [
+        "synthetic-model"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-project-alpha",
+      "role": "main",
+      "session_id": "synthetic-session-b",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 250,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 900,
+        "input_tokens": 17,
+        "output_tokens": 48,
+        "prompt_tokens": 1167,
+        "ttl_split_known": false
+      }
+    },
+    {
+      "calls": 24,
+      "compactions": 0,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-20T09:00:30Z",
+      "last_timestamp": "2026-10-20T09:12:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-02-after-25pct",
+      "role": "main",
+      "session_id": "syn-after-2",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 137800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 137800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 1899800,
+        "input_tokens": 0,
+        "output_tokens": 14400,
+        "prompt_tokens": 2037600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 12,
+      "compactions": 0,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-21T09:00:30Z",
+      "last_timestamp": "2026-10-21T09:06:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "main",
+      "session_id": "syn-sub-cli",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 82600,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 82600,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 605000,
+        "input_tokens": 0,
+        "output_tokens": 7200,
+        "prompt_tokens": 687600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 12,
+      "compactions": 0,
+      "entrypoints": [
+        "sdk-cli"
+      ],
+      "first_timestamp": "2026-10-21T09:00:30Z",
+      "last_timestamp": "2026-10-21T09:06:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "main",
+      "session_id": "syn-sub-sdk",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 82600,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 82600,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 605000,
+        "input_tokens": 0,
+        "output_tokens": 7200,
+        "prompt_tokens": 687600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 4,
+      "compactions": 0,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-21T10:00:30Z",
+      "last_timestamp": "2026-10-21T10:02:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "subagent",
+      "session_id": "syn-sub-cli-ag-a/agent-ag-a",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 14800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 14800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 28800,
+        "input_tokens": 0,
+        "output_tokens": 2400,
+        "prompt_tokens": 43600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 4,
+      "compactions": 0,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-21T10:00:30Z",
+      "last_timestamp": "2026-10-21T10:02:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "subagent",
+      "session_id": "syn-sub-cli-ag-b/agent-ag-b",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 14800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 14800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 28800,
+        "input_tokens": 0,
+        "output_tokens": 2400,
+        "prompt_tokens": 43600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 4,
+      "compactions": 0,
+      "entrypoints": [
+        "sdk-cli"
+      ],
+      "first_timestamp": "2026-10-21T10:00:30Z",
+      "last_timestamp": "2026-10-21T10:02:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "subagent",
+      "session_id": "syn-sub-sdk/agent-ag-a",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 14800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 14800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 28800,
+        "input_tokens": 0,
+        "output_tokens": 2400,
+        "prompt_tokens": 43600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 4,
+      "compactions": 0,
+      "entrypoints": [
+        "sdk-cli"
+      ],
+      "first_timestamp": "2026-10-21T10:00:30Z",
+      "last_timestamp": "2026-10-21T10:02:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-04-subagent-heavy",
+      "role": "subagent",
+      "session_id": "syn-sub-sdk/agent-ag-b",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 14800,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 14800,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 28800,
+        "input_tokens": 0,
+        "output_tokens": 2400,
+        "prompt_tokens": 43600,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 89,
+      "compactions": 41,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-10-27T09:00:30Z",
+      "last_timestamp": "2026-10-27T10:05:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000,
+        46000
+      ],
+      "pre_tokens": [
+        61200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200,
+        60200
+      ],
+      "project": "SYNTHETIC-03-compounding-62k",
+      "role": "main",
+      "session_id": "syn-compound-1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 1642200,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 1642200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 3295000,
+        "input_tokens": 0,
+        "output_tokens": 53400,
+        "prompt_tokens": 4937200,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 1,
+      "compactions": 1,
+      "entrypoints": [],
+      "first_timestamp": "2026-11-01T10:00:01Z",
+      "last_timestamp": "2026-11-01T10:05:00Z",
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [
+        250000
+      ],
+      "project": "SYNTHETIC-05-edge-cases",
+      "role": "main",
+      "session_id": "S1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 20000,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 20000,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 0,
+        "input_tokens": 5,
+        "output_tokens": 500,
+        "prompt_tokens": 20005,
+        "ttl_split_known": true
+      }
+    },
+    {
+      "calls": 3,
+      "compactions": 1,
+      "entrypoints": [
+        "cli"
+      ],
+      "first_timestamp": "2026-11-01T10:00:02Z",
+      "last_timestamp": "2026-11-01T10:04:00Z",
+      "models": [
+        "SYNTHETIC-claude-sonnet-5"
+      ],
+      "post_tokens": [
+        9000
+      ],
+      "pre_tokens": [
+        120000
+      ],
+      "project": "SYNTHETIC-05-edge-cases",
+      "role": "main",
+      "session_id": "syn-edge-1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 2000,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 11100,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 15000,
+        "input_tokens": 10,
+        "output_tokens": 530,
+        "prompt_tokens": 26110,
+        "ttl_split_known": false
+      }
+    },
+    {
+      "calls": 2,
+      "compactions": 0,
+      "entrypoints": [],
+      "first_timestamp": "2026-11-01T10:00:30Z",
+      "last_timestamp": "2026-11-01T10:01:30Z",
+      "models": [
+        "SYNTHETIC-claude-haiku-5-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-05-edge-cases",
+      "role": "subagent",
+      "session_id": "syn-edge-1/agent-ag1",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 3200,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 3000,
+        "input_tokens": 5,
+        "output_tokens": 110,
+        "prompt_tokens": 6205,
+        "ttl_split_known": false
+      }
+    },
+    {
+      "calls": 1,
+      "compactions": 0,
+      "entrypoints": [],
+      "first_timestamp": "2026-11-01T10:02:00Z",
+      "last_timestamp": "2026-11-01T10:02:00Z",
+      "models": [
+        "claude-haiku-4-5"
+      ],
+      "post_tokens": [],
+      "pre_tokens": [],
+      "project": "SYNTHETIC-05-edge-cases",
+      "role": "subagent",
+      "session_id": "S1/agent-abc",
+      "synthetic": true,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 15000,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 0,
+        "input_tokens": 3,
+        "output_tokens": 100,
+        "prompt_tokens": 15003,
+        "ttl_split_known": true
+      }
+    }
+  ],
+  "periods": {
+    "after": {
+      "cache_read_share_of_prompt": 0.9424742362283963,
+      "calls": 642,
+      "compactions": 53,
+      "main_calls": 623,
+      "prompt_tokens_per_call": 126459.84269662922,
+      "prompt_tokens_per_session_mean": 5641435.0,
+      "prompt_tokens_per_session_median": 43600.0,
+      "sessions": 14,
+      "tokens": {
+        "cache_creation_1h_tokens": 4515800,
+        "cache_creation_5m_tokens": 15000,
+        "cache_creation_input_tokens": 4543350,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 74436700,
+        "input_tokens": 40,
+        "output_tokens": 381088,
+        "prompt_tokens": 78980090,
+        "ttl_split_known": false
+      }
+    },
+    "before": {
+      "cache_read_share_of_prompt": 0.9890871401690885,
+      "calls": 508,
+      "compactions": 3,
+      "main_calls": 507,
+      "prompt_tokens_per_call": 438408.9250493097,
+      "prompt_tokens_per_session_mean": 55568339.5,
+      "prompt_tokens_per_session_median": 1023862.5,
+      "sessions": 4,
+      "tokens": {
+        "cache_creation_1h_tokens": 2424500,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 2425510,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 219847720,
+        "input_tokens": 128,
+        "output_tokens": 302499,
+        "prompt_tokens": 222273358,
+        "ttl_split_known": false
+      }
+    },
+    "comparison_note": "Compare prompt tokens per session and per main call. Raw totals confound how much work was done in each period. A client switch in the same week is a separate variable; split by entrypoint too.",
+    "rule": "calls are grouped by the local date of their own timestamp; the split date itself is 'after'. Streams that cross the date appear in both sides.",
+    "split_date": "2026-10-01",
+    "timezone": "UTC",
+    "undated": {
+      "cache_read_share_of_prompt": null,
+      "calls": 0,
+      "compactions": 0,
+      "main_calls": 0,
+      "prompt_tokens_per_call": null,
+      "prompt_tokens_per_session_mean": null,
+      "prompt_tokens_per_session_median": null,
+      "sessions": 0,
+      "tokens": {
+        "cache_creation_1h_tokens": 0,
+        "cache_creation_5m_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_creation_mismatch": false,
+        "cache_read_input_tokens": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "prompt_tokens": 0,
+        "ttl_split_known": false
+      }
+    }
+  },
+  "privacy": "aggregates only; prompt content is not copied",
+  "records": 2422,
+  "sessions": 18,
+  "subagent": {
+    "cache_read_share_of_prompt": 0.6042700660904412,
+    "calls": 20,
+    "compactions": 0,
+    "prompt_tokens_per_call": 9782.05,
+    "prompt_tokens_per_session_mean": 27948.714285714286,
+    "prompt_tokens_per_session_median": 43600.0,
+    "sessions": 7,
+    "tokens": {
+      "cache_creation_1h_tokens": 59200,
+      "cache_creation_5m_tokens": 15000,
+      "cache_creation_input_tokens": 77410,
+      "cache_creation_mismatch": false,
+      "cache_read_input_tokens": 118220,
+      "input_tokens": 11,
+      "output_tokens": 9814,
+      "prompt_tokens": 195641,
+      "ttl_split_known": false
+    }
+  },
+  "synthetic": true,
+  "tokenizer_warning": "Pricing-page note: Claude 4.7 and later models produce approximately 30% more tokens for the same text than earlier models.",
+  "totals": {
+    "cache_read_share_of_prompt": 0.977108691952971,
+    "calls": 1150,
+    "compactions": 56,
+    "note": "totals.tokens sums main and subagent calls. prompt_tokens_per_call in main is the per-call average to use.",
+    "prompt_tokens_per_call": 266422.83805309737,
+    "prompt_tokens_per_session_mean": 27368891.545454547,
+    "prompt_tokens_per_session_median": 687600.0,
+    "sessions": 18,
+    "tokens": {
+      "cache_creation_1h_tokens": 6940300,
+      "cache_creation_5m_tokens": 15000,
+      "cache_creation_input_tokens": 6968860,
+      "cache_creation_mismatch": false,
+      "cache_read_input_tokens": 294284420,
+      "input_tokens": 168,
+      "output_tokens": 683587,
+      "prompt_tokens": 301253448,
+      "ttl_split_known": false
+    }
+  },
+  "usage_records_before_dedup": 2293
+}

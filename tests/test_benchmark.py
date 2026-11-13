@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from cc_usage_study.benchmark import (
+    compaction_claim_validity,
     discover_tasks,
     execute_arm,
     extra_files,
@@ -13,6 +14,10 @@ from cc_usage_study.benchmark import (
 )
 
 CANARY = "CANARY_STREAM_TEXT_do_not_keep"
+
+
+def task_is_smoke(task_id: str) -> bool:
+    return task_id in {"median_bug", "slice_bug", "keep_currency"}
 
 
 def test_window_clamp_on_a_200k_context():
@@ -86,7 +91,13 @@ def test_stream_parser_drops_message_text_and_counts_compaction():
                     "message": {"content": [{"type": "text", "text": CANARY}]},
                 }
             ),
-            json.dumps({"type": "system", "subtype": "compact_boundary"}),
+            json.dumps(
+                {
+                    "type": "system",
+                    "subtype": "compact_boundary",
+                    "compact_metadata": {"trigger": "auto", "pre_tokens": 250000},
+                }
+            ),
             json.dumps(
                 {
                     "type": "result",
@@ -122,6 +133,7 @@ def test_stream_parser_drops_message_text_and_counts_compaction():
     parsed = parse_stream_text(stream)
     assert parsed["ok"] is True
     assert parsed["compaction_markers"] == 1
+    assert parsed["pre_tokens"] == [250000]
     assert parsed["usage"]["cache_read_input_tokens"] == 40
     assert parsed["usage"]["ephemeral_1h_input_tokens"] == 25
     assert parsed["model_usage"]["claude-sonnet-5-5"]["cacheReadInputTokens"] == 44
@@ -162,7 +174,16 @@ def test_score_detects_the_bug_and_a_fix(tmp_path: Path):
 
 def test_execute_is_not_the_default_and_tasks_are_discoverable():
     ids = {task["id"] for task in discover_tasks()}
-    assert ids == {"median_bug", "slice_bug", "keep_currency"}
-    arms = plan_arms(percents=[95, 25], methods=["window"], repeats=2)
+    assert {"median_bug", "slice_bug", "keep_currency", "ledger_migration"} <= ids
+    smoke = [task for task in discover_tasks() if task.get("smoke")]
+    assert {task["id"] for task in smoke} == {"median_bug", "slice_bug", "keep_currency"}
+    arms = plan_arms(tasks=smoke, percents=[95, 25], methods=["window"], repeats=2)
     assert len(arms) == 3 * 2 * 2
     assert all(arm["bare_mode"] is False for arm in arms)
+    grid = plan_arms(percents=[None, 25], methods=["window"], include_smoke=False)
+    assert all(not task_is_smoke(arm["task_id"]) for arm in grid)
+    assert any("--session-id" in arm["argv"] for arm in grid)
+    assert any("--setting-sources" in arm["argv"] and "project" in arm["argv"] for arm in grid)
+    assert any("--strict-mcp-config" in arm["argv"] for arm in grid)
+    invalid = compaction_claim_validity({"compaction_markers": 0, "pre_tokens": []}, expected_trigger=250000)
+    assert invalid["valid_for_compaction_claims"] is False

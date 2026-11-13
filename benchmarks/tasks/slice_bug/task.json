@@ -1,5 +1,7 @@
 {
   "id": "slice_bug",
+  "schema": 1,
+  "smoke": true,
   "title": "Fix last_n so it keeps n items",
   "prompt_file": "prompt.txt",
   "score": ["python", "-m", "pytest", "-q", "test_slice.py"],

@@ -1,0 +1,1 @@
+Follow the checkpoint messages in order. Later decisions override earlier ones. Do not restore the first default after it has been changed.

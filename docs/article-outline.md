@@ -1,137 +1,79 @@
 # Outline: does compacting Claude Code earlier actually save usage?
 
-Draft for a post on nevolin.be. Plain structure. Nothing here is a result from Ilja's account. The figures are from the simulation in this repo, under assumptions that the post has to show.
+Draft for nevolin.be. The article itself is `docs/article-draft.md`. Numbers below are outputs of the physical-caching simulator in `outputs/summary.json`, scenario S1 unless named otherwise. They are not account measurements.
 
-Working title: Compacting Claude Code at 25 percent. A smaller context, not a free 4x.
+## 1. Open on the correction
 
-Alternate: I set auto-compaction to 25 percent. Here is what that can and cannot change.
+Quote both posts. "Almost 4x" is one person's observation. "Another 200%" is not a valid reduction. Do not invent a replacement ratio. State the question: when is a smaller history cheaper without making the work worse?
 
-## 1. The claim, in the form it was made
+## 2. Three accountings
 
-Two posts, from one work setup, not from a controlled run:
+Raw prompt tokens, API-equivalent cost at published prices, and the five-hour and weekly meters. A factor on the first is not a factor on the third. Link the [usage-limits article](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work) and the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing).
 
-- Setting auto-compaction to 25 percent, against a default described as "95 percent or so," cut Claude Code usage by almost 4x. The five-hour limit and the weekly limit stopped binding.
-- Switching from the Claude app to the Claude CLI, through T3 Code, "cuts token usage by another 200 percent." The screenshot text says "take usage," which reads as a typo for token usage. "Another 200 percent" is not a defined ratio. The post should not repeat it as one.
+Define a user turn versus a model request before any 60-by-8 figure.
 
-Say up front that both are anecdotes. The post is the attempt to see whether they generalize, and why they might.
+## 3. What 25% refers to
 
-## 2. The mechanism, before any number
+Do not write "the default is 95%." Native 1M models compact at about 967K ([model config](https://code.claude.com/docs/en/model-config)). The percentage override cannot raise the threshold. A window plus a percentage compounds: 250,000 and 25% is 62,500 in this model (S8). T3's "Auto-compact after" is the window. A source comment says the reported threshold is about 33,000 below that window (S1b uses 217,000). Verify with `preTokens`.
 
-Each Claude Code turn re-sends the whole context. The docs say this directly: the model does not remember between requests, so the request carries the system prompt, the project context, every prior message and tool result, and the new message. If every turn adds roughly the same amount of new material, the bill for re-sending history grows with the square of the number of turns. That is the reason a long session feels expensive out of proportion to the last thing you typed.
+## 4. Figures, with the assumptions under the first one
 
-Compaction replaces that history with a summary. You pay for the summary call. You lose detail, and Claude may re-read files or redo work. In exchange, later turns send a smaller prompt.
+1. `outputs/figures/cumulative_raw_tokens.png`. S1 cumulative prompt tokens.
+2. `outputs/figures/cumulative_api_equivalent.png`. Same session, priced.
+3. `outputs/figures/context_sawtooth.png`. Prompt size at 250k and at about 967k.
+4. `outputs/figures/eoq_curve.png`. Cost versus trigger at read prices 0.1, 0.05, and 0.025.
+5. `outputs/figures/amnesia_breakeven.png`. S3 repair sweep.
+6. `outputs/figures/ttl_cliff.png`. Idle off, idle on, 5-minute TTL.
+7. `outputs/figures/compounding_sawtooth.png`. 62,500 against about 967k.
+8. `outputs/figures/short_session.png`. S2, the lines match.
+9. `outputs/figures/threshold_sweep.png`. The 0.1x slice of the EOQ grid.
+10. `outputs/figures/sensitivity_cache_hit.png`. Read-price sensitivity.
+11. `outputs/figures/sensitivity_rework.png`. Same data as the amnesia figure.
 
-Prompt caching changes the price of the re-send. The unchanged prefix is billed as a cache read, at 0.1x the base input price on most models, 0.05x on Opus 5.5 and Sonnet 5.5, and 0.025x on Fable 5.2 (Anthropic pricing page, snapshot 13 November 2026). A 1-hour cache write is 2x, and a 5-minute write is 1.25x. On a subscription, inside the plan, Claude Code asks for the 1-hour TTL on the main conversation. Compaction invalidates the conversation prefix, so the turn after a compaction rebuilds that cache.
+Print next to the first figure, S1:
 
-The subscription limits are a third accounting, and Anthropic has not published it. The five-hour and weekly limits are real, they are shared by claude.ai, Claude Code, and Claude Desktop, and they depend on length, model, features, and effort. They are not documented as a function of these token buckets. A post that treats "tokens" and "I hit the limit" as the same number is ahead of the docs.
+- Raw prompt tokens: 72,881,600 against 222,160,000. Ratio 3.05. About 67% fewer raw prompt tokens at 250k. Not 4x.
+- API-equivalent units: 13,626,420 against 28,033,460. Ratio 2.06.
+- Compactions: 10 against 2.
+- Grid optima: 120,000 tokens at 0.1x (saving 2.35 versus 967k), 160,000 at 0.05x (1.76), 220,000 at 0.025x (1.39). Formula estimates 126,393, 158,880, and 205,060. Say the practical band for current list prices is about 150k to 200k, and that 25% of 1M (250k) is past it.
+- S3 at 15 repair requests: API ratio 1.03.
+- S4b idle on: API ratio 1.31.
+- S2: API ratio 1.00. S2b: 0.93.
+- S8 raw 6.21, API 1.43. S8b API 0.70 versus 250k alone.
 
-## 3. What "25 percent" actually refers to
+## 5. What the laptop must fill in
 
-Do not write "the default is 95 percent" as a fact. Checked against the Claude Code docs on 13 November 2026:
+Slots, not guesses:
 
-- Native 1M models (Fable, Sonnet 5 and later, Haiku 5.5, Opus 4.7 and later) auto-compact at about 967K tokens by default. That is about 96.7 percent of 1M, which is close to "95 percent or so," and it is an approximation in the docs, not a setting named 95.
-- `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` sets a percentage from 1 to 100 of the auto-compact window. Lower values compact earlier. The variable cannot raise the threshold. Values above the default percentage are ignored. The docs do not publish that default percentage.
-- The other knob is the window in tokens: `/autocompact`, `--autocompact`, `autoCompactWindow`, or `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, from 100,000 to 1,000,000. On a 200K window, 25 percent and 10 percent both land on the 100,000 floor if you use this knob. They are not separate experiments there.
-- T3 Code's own setting, "Auto-compact after," is that token count, not the percentage variable.
+- [MEASURED_LOCAL_DATA: settings, date, model, entrypoint, version.]
+- [MEASURED_LOCAL_DATA: main-stream buckets, per-call prompt tokens, `preTokens` histogram.]
+- [MEASURED_LOCAL_DATA: meter percentage points for the same blocks.]
+- [MEASURED_LOCAL_DATA: tests, repairs, elapsed time, or "not run."]
 
-The post should show both knobs and say which one was changed. If the notes only say "25 percent," the matching control is the percentage variable, and the 95 percent end of the comparison may be a no-op.
+The analyzer does not see the meter. `five_hour_blocks` are labeled weights, including a third-party attribution scheme that is not the server meter.
 
-## 4. What the simulation predicts, and the figure list
+## 6. The controlled run, as a protocol, not a result
 
-All of these are outputs of `python -m cc_usage_study.simulate`, committed under `outputs/`. Assumptions, also in the README: 1M window, 120 productive turns, 20,000 new tokens per turn, 2,000 output tokens per turn, a 20,000-token re-injected prefix, a 4,000-token summary, 6,000 tokens of re-read files, cache hit rate 0.95 on the stable prefix, cache reads at 0.1x, 1-hour writes at 2x, output at 5x the base input price, no rework. None of those token sizes except the about-967K trigger is a measurement.
+Point at `benchmarks/protocol.md`. Smoke tasks do not reach 250k. Long tasks are `ledger_migration`, `noisy_bughunt`, and `steered_feature`, generated from a seed, with hidden tests and checkers. Placement of the invariant (CLAUDE.md, prompt, doc, PreCompact hook) is the quality variable. `claude -p` is `sdk-cli`. Meter claims need the `tui` arm. No live numbers exist yet.
 
-Figures to include:
+## 7. The client switch, separate
 
-1. `outputs/figures/cumulative_raw_tokens.png`. Cumulative prompt tokens (fresh input plus cache reads plus cache writes) against turns, one line per threshold. This is the quadratic versus the sawtooth.
-2. `outputs/figures/cumulative_api_equivalent.png`. The same sessions, priced with the cache multipliers. The lines sit closer together.
-3. `outputs/figures/threshold_sweep.png`. End-of-session totals at 95, 75, 50, 25, and 10 percent. Raw tokens keep falling. The priced total flattens.
-4. `outputs/figures/context_sawtooth.png`. Context size over the session at 25 and 95 percent.
-5. `outputs/figures/sensitivity_cache_hit.png`. The 25/95 ratio against cache hit rate. The raw ratio does not move. The priced ratio does.
-6. `outputs/figures/sensitivity_rework.png`. The same ratio against extra turns spent repairing lost context.
-7. `outputs/figures/short_session.png`. Thirty quieter turns. The 95 percent line never compacts, and the gap shrinks.
+`benchmarks/client_comparison.md`. Matched window via `/context`. T3 idle policy and invisible text-generation runs. Counterbalanced order. Do not claim T3 is cheaper. Some public reports say the SDK entrypoint used more of the five-hour meter per token.
 
-Numbers to print next to the figures, for the default long session, 25 percent of 1M against 95 percent of 1M:
+## 8. Caveats to print
 
-- Raw prompt tokens: 20,531,000 against 59,092,000. Ratio 0.347. The 95 percent session sends about 2.9 times as many prompt tokens. The factor of 4 from the posts is larger than this scenario.
-- API-equivalent cost, in units of one base input token: 10,046,350 against 17,177,350. Ratio 0.585. The priced total at 95 percent is about 1.7 times the 25 percent total.
-- Compactions: 11 against 2.
-- The same comparison against the documented about-967K trigger, using a 250,000 token threshold: raw ratio 0.346, priced ratio 0.583. Almost the same, because 967K is close to 95 percent of 1M.
-- With cache reads at 0.05x, the Opus 5.5 and Sonnet 5.5 list price, the raw ratio stays 0.347 and the priced ratio rises to 0.635. Cheaper reads make a large context hurt less, so shrinking it saves less money.
-- With no cache at all, the priced ratio is 0.362, close to the raw ratio. That is the world the quadratic story assumes. It is not how Claude Code is billed.
-- At 10 percent the raw total falls further, to 12,383,000, but the priced total is 9,665,830, only a little under the 25 percent priced total of 10,046,350. Thirty-nine compactions to get there. Past a point, earlier compaction is mostly extra summary calls.
-- In the short session, 25 percent uses 3,901,000 prompt tokens against 5,190,000, ratio 0.752, with one compaction against zero. The direction is still "less," and the size is nowhere near 4x.
-- Rework: with about 7 extra repair turns after every compaction, the priced ratio crosses 1. Raw tokens can still be lower while the priced total is not. Lost context is the way the trick loses.
+- One setup, two changes at once (threshold and client).
+- About 967K is a documented approximation, not a historical constant for the week of the posts.
+- Cold rewrites in the model are priced as cache writes, not as 1.0x fresh input. The summary file says so.
+- Haiku 5.5's long-prompt tier is per request. Fast-mode cache prices are not in the estimator.
+- 4.7 and later models tokenize the same text into more tokens. A version change can look like a usage change.
+- Subagent lines often carry the parent's session id. Counting them inside the parent, or counting a compaction twice, will invent a ratio.
+- The synthetic fixture is fake.
 
-A line the post can use, if it stays tied to these assumptions: the direction of the anecdote is what the model produces on a long session, and the factor of 4 is larger than this scenario. The factor of 4 remains possible for a different growth rate, a different meter, or a workload that was previously sitting at the top of the window on every turn. It is not the default prediction.
+## 9. Close on the narrow claim
 
-Say, in the same section, what would move the prediction to a true 4x. Raw tokens scale toward the ratio of the thresholds only when the residual summary is small, compaction calls are a small share, and the session cycles many times. 250/950 is 0.26, about 3.8x. This scenario lands at 0.35 because the summary and the re-injected prefix are not zero, and because the low threshold pays for eleven full-context summary calls.
+If the laptop split and a long-task pilot agree with S1, the honest sentence is: on long sessions, a lower trigger reduces re-sent prompt tokens by something on the order of 3x in this scenario, the list-price saving is closer to 2x, the priced optimum is nearer 150k to 200k than to 25% of 1M, and the meter is a separate measurement.
 
-## 5. What has to be measured on the laptop
+If prompt tokens per completed task do not move, the 4x was workload, model, client, or the meter.
 
-The simulation does not know his sessions. The analyzer does, and only he can run it, because the transcripts are local and the tool is written to keep prompt text out of the report.
-
-- Point it at `~/.claude/projects` and split on the date the setting changed.
-- Compare prompt tokens per session and per call, not the raw weekly sum. A quiet week after the change looks like a saving either way.
-- Report the four buckets separately: input, output, cache creation, cache read. Also the 5-minute and 1-hour write split when the transcript has it.
-- Count structural compaction markers. Older files may summarize without a marker the parser recognizes. Say so if the count is zero and the context size still sawtooths.
-- Put the Settings > Usage percentages beside the token table for the same dates. If tokens fall 3x and the meter falls 4x, or 1.2x, that is the interesting cell. Do not fill it in with a guessed weight.
-
-Claims the laptop data can verify:
-
-- After the change, median prompt tokens per session fell, on a similar kind of work.
-- Compactions per session rose.
-- Cache-read share of the prompt fell or the prompts got shorter. Both are consistent with earlier compaction. They are not, by themselves, a meter result.
-- The five-hour bar and the weekly bar stopped filling. This sentence requires the meter notes. The JSONL files do not contain it.
-
-Claims the laptop data cannot verify:
-
-- That the same would happen on another codebase, model, or client.
-- That T3 Code is cheaper than the Claude desktop chat app. Different transcript roots, and the chat app has no such root. See `benchmarks/client_comparison.md`.
-- A quality regression. Token files do not say whether the summary forgot the constraint.
-
-## 6. The controlled run, in one section
-
-Describe the protocol, do not paste it. Fixed tasks, fresh directory per arm, model and effort pinned, version recorded, meter recorded on an idle account, window arm and percent arm both run, pilot of 25 against the default before any large grid. Success is tests passing, plus the constraint checks, plus the token buckets from `modelUsage` (it includes subagents; top-level `usage` does not).
-
-Be explicit that the three tasks shipped with the repo are too short to force a compaction at 95 percent of 1M. They prove the harness scores a pass and a fail. A long task has to be added before this section has a number.
-
-Also be explicit that `total_cost_usd` is a client-side estimate.
-
-## 7. The client switch, as a separate claim
-
-Keep it short. Same allowance, different clients. T3 Code is not the Claude desktop app and not the official TUI. Its compaction control is a token count. A public issue on the T3 Code repo reports that the Agent SDK entrypoint has, at times, moved the five-hour meter faster than the interactive CLI for the same tokens, with a later note that a `t3-code` entrypoint matched the CLI on one check. That is their measurement. If the post mentions it, label it that way, and do not treat a single Pro-plan check as a rate.
-
-The measurable version of this claim is in `benchmarks/client_comparison.md`: same tasks, meter notes for every block, transcripts where they exist, compaction settings matched before calling a difference a client effect.
-
-## 8. Caveats to print, not to hide in a footnote
-
-- One person's sessions at work. Tooling, repo size, and which model the company allows all move the result.
-- "Almost 4x" and "another 200 percent" were not measured with the buckets above. The post should not upgrade them to findings.
-- The default is not published as 95 percent. About 967K on native 1M models is the published approximation, as of the docs read for this repo.
-- The percentage override cannot delay compaction. A before period that was "already at the default" may not have been at 95 percent of the window.
-- Cache prices and the subscription meter are different. The model predicts a smaller saving on the priced total than on raw tokens. The meter could be either, or neither.
-- Earlier compaction can throw away a decision the model still needed. The rework plot is the warning. The currency task is a toy version of the same failure.
-- Compaction itself costs a full-context summary call, and on a warm cache that call is mostly a cache read plus the summary output. On a cold cache it reprocesses the history. The model includes the call. A real session that compacts after an hour idle pays the cold version.
-- Subagents have their own context. A transcript total that ignores them under-counts. Prefer `modelUsage` in the benchmark and include subagent files in the analyzer. They are tagged `subagent`.
-- Prices in the estimator are a snapshot of the Anthropic pricing page on 13 November 2026. They will go stale. The estimator refuses a price when the model is unknown or the cache-write TTL split is missing, rather than guessing.
-- The synthetic fixture is fake. Its report is marked synthetic. Do not paste it into the post as usage.
-
-## 9. A closing that matches the evidence
-
-If the laptop split and a long-task pilot agree with the long-session simulation, the honest conclusion is narrow: on long sessions, a lower trigger reduces re-sent prompt tokens by something on the order of the threshold ratio, the list-price saving is smaller because of caching, and the limit he felt is a separate measurement he still has to write down.
-
-If the laptop split shows no change in prompt tokens per session, the 4x was workload, model, or the meter, and the post should say that.
-
-If tests start failing when the trigger drops, the token saving is real and the work is worse. That is a result, not a footnote.
-
-## Suggested section order for the published post
-
-1. The two posts, quoted, with the date and the fact that they are one setup.
-2. Why re-sending the context makes long sessions expensive.
-3. What the docs actually say the setting does.
-4. The simulation figures, with the assumptions in a table under the first figure.
-5. The before/after from `~/.claude/projects`, four buckets, per session.
-6. The meter notes beside that table.
-7. The pilot benchmark, or a clear statement that it has not been run yet.
-8. The client comparison, mostly as an open measurement, plus the T3 Code caveat.
-9. When earlier compaction is the wrong tool: short sessions, high cache hit rate, and work that cannot survive a summary.
+If tests fail when the trigger drops, the token saving is real and the work is worse.

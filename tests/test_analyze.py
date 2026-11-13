@@ -11,7 +11,7 @@ from cc_usage_study.analyze import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / "fixtures" / "synthetic" / "projects"
+FIXTURE = ROOT / "fixtures" / "synthetic" / "projects" / "SYNTHETIC-project-alpha"
 CANARY = "CANARY_PROMPT_do_not_emit_9f3a"
 
 
@@ -43,8 +43,10 @@ def test_synthetic_fixture_totals_and_dedup():
     assert session_a["compactions"] == 1
     assert session_a["role"] == "main"
     assert session_a["tokens"]["output_tokens"] == 95
-    assert by_id["synthetic-subagent-1"]["role"] == "subagent"
-    assert by_id["synthetic-subagent-1"]["project"] == "SYNTHETIC-project-alpha"
+    subagent = next(item for item in report["per_session"] if item["role"] == "subagent")
+    assert subagent["role"] == "subagent"
+    assert "synthetic-subagent-1" in subagent["session_id"]
+    assert subagent["project"] == "SYNTHETIC-project-alpha"
     assert report["by_model"]["synthetic-model"]["list_price_estimate"]["usd"] is None
 
 

@@ -1,0 +1,15 @@
+{
+  "id": "noisy_bughunt",
+  "schema": 2,
+  "smoke": false,
+  "generator": {"module": "benchmarks.generators.gen_noisy_bughunt", "seed": 1337, "scale": "S"},
+  "variants": ["P-doc"],
+  "prompt_file": "prompt.txt",
+  "max_turns": 400,
+  "timeout_s": 14400,
+  "score_visible": ["python", "-m", "pytest", "-q", "tests/visible"],
+  "hidden_dir": "hidden",
+  "checkers": ["B-INV-2"],
+  "probe_ids": ["DECOY-1", "DECOY-2", "DECOY-3"],
+  "decoy_paths": ["relayd/metrics.py"]
+}

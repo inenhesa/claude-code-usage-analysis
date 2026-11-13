@@ -1,568 +1,936 @@
 {
-  "disclaimer": "Model output under stated assumptions. Not a measurement of any Claude account, and not a prediction of the five-hour or weekly usage meter. Anthropic has not published meter weights.",
-  "default_assumptions": {
-    "context_window": 1000000,
-    "turns": 120,
-    "growth_per_turn": 20000,
-    "output_per_turn": 2000,
-    "system_prompt_tokens": 12000,
-    "project_context_tokens": 8000,
-    "summary_tokens": 4000,
-    "reinjected_tokens": 6000,
-    "cache_hit_rate": 0.95,
-    "cache_read_multiplier": 0.1,
-    "cache_write_multiplier": 2.0,
-    "output_multiplier": 5.0,
-    "rework_turns_per_compaction": 0,
-    "notes": [
-      "Token sizes except the documented about-967K trigger are assumptions.",
-      "cache_read_multiplier 0.1 is the standard published cache-hit rate. Opus 5.5 and Sonnet 5.5 are 0.05. Fable 5.2 is 0.025.",
-      "cache_write_multiplier 2.0 is the published 1-hour cache-write rate. Claude Code requests a 1-hour TTL on the main conversation for subscription usage that is still inside the plan.",
-      "output_multiplier 5 matches the published output/input price ratio for several current models, including Opus 5.5 (20/4) and Sonnet 5.5 (10/2). It is not universal.",
-      "With caching on, every prompt token is either a cache read or a cache write. Real calls also report a small uncached input_tokens tail."
-    ]
-  },
-  "long_session": {
-    "by_threshold_fraction": {
-      "0.95": {
-        "label": "long_session@0.95",
-        "threshold_tokens": 950000,
-        "threshold_fraction_of_window": 0.95,
-        "productive_turns": 120,
-        "rework_turns": 0,
-        "compactions": 2,
-        "prompt_tokens": 59092000,
-        "input_tokens": 0,
-        "cache_read_tokens": 53803500,
-        "cache_write_tokens": 5288500,
-        "output_tokens": 244000,
-        "api_equivalent_cost": 17177350.0,
-        "peak_prompt_tokens": 945000,
-        "warnings": []
-      },
-      "0.75": {
-        "label": "long_session@0.75",
-        "threshold_tokens": 750000,
-        "threshold_fraction_of_window": 0.75,
-        "productive_turns": 120,
-        "rework_turns": 0,
-        "compactions": 3,
-        "prompt_tokens": 46893000,
-        "input_tokens": 0,
-        "cache_read_tokens": 42197000,
-        "cache_write_tokens": 4696000,
-        "output_tokens": 246000,
-        "api_equivalent_cost": 14841700.0,
-        "peak_prompt_tokens": 747000,
-        "warnings": []
-      },
-      "0.50": {
-        "label": "long_session@0.50",
-        "threshold_tokens": 500000,
-        "threshold_fraction_of_window": 0.5,
-        "productive_turns": 120,
-        "rework_turns": 0,
-        "compactions": 5,
-        "prompt_tokens": 33655000,
-        "input_tokens": 0,
-        "cache_read_tokens": 29586000,
-        "cache_write_tokens": 4069000,
-        "output_tokens": 250000,
-        "api_equivalent_cost": 12346600.0,
-        "peak_prompt_tokens": 493000,
-        "warnings": []
-      },
-      "0.25": {
-        "label": "long_session@0.25",
-        "threshold_tokens": 250000,
-        "threshold_fraction_of_window": 0.25,
-        "productive_turns": 120,
-        "rework_turns": 0,
-        "compactions": 11,
-        "prompt_tokens": 20531000,
-        "input_tokens": 0,
-        "cache_read_tokens": 17013500,
-        "cache_write_tokens": 3517500,
-        "output_tokens": 262000,
-        "api_equivalent_cost": 10046350.0,
-        "peak_prompt_tokens": 251000,
-        "warnings": []
-      },
-      "0.10": {
-        "label": "long_session@0.10",
-        "threshold_tokens": 100000,
-        "threshold_fraction_of_window": 0.1,
-        "productive_turns": 120,
-        "rework_turns": 0,
-        "compactions": 39,
-        "prompt_tokens": 12383000,
-        "input_tokens": 0,
-        "cache_read_tokens": 8784300,
-        "cache_write_tokens": 3598700,
-        "output_tokens": 318000,
-        "api_equivalent_cost": 9665830.0,
-        "peak_prompt_tokens": 97000,
-        "warnings": []
-      }
-    },
-    "ratio_0.25_over_0.95": {
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.584860295680067,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 10046350.0,
-      "api_equivalent_high": 17177350.0,
-      "cache_read_low": 17013500,
-      "cache_read_high": 53803500,
-      "cache_write_low": 3517500,
-      "cache_write_high": 5288500
-    }
-  },
-  "about_967k_versus_250k": {
-    "note": "250000 is 25% of a 1M window. 967000 is the documentation's 'about 967K' default trigger for native 1M models, not a 95% setting.",
-    "low": {
-      "label": "long_session",
-      "threshold_tokens": 250000,
-      "threshold_fraction_of_window": 0.25,
-      "productive_turns": 120,
-      "rework_turns": 0,
-      "compactions": 11,
-      "prompt_tokens": 20531000,
-      "input_tokens": 0,
-      "cache_read_tokens": 17013500,
-      "cache_write_tokens": 3517500,
-      "output_tokens": 262000,
-      "api_equivalent_cost": 10046350.0,
-      "peak_prompt_tokens": 251000,
-      "warnings": []
-    },
-    "high": {
-      "label": "about_967k",
-      "threshold_tokens": 967000,
-      "threshold_fraction_of_window": 0.967,
-      "productive_turns": 120,
-      "rework_turns": 0,
-      "compactions": 2,
-      "prompt_tokens": 59390000,
-      "input_tokens": 0,
-      "cache_read_tokens": 54086600,
-      "cache_write_tokens": 5303400,
-      "output_tokens": 244000,
-      "api_equivalent_cost": 17235460.0,
-      "peak_prompt_tokens": 967000,
-      "warnings": []
-    },
-    "ratio_250k_over_967k": {
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 967000,
-      "prompt_tokens_ratio": 0.3456979289442667,
-      "api_equivalent_ratio": 0.5828884172514107,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59390000,
-      "api_equivalent_low": 10046350.0,
-      "api_equivalent_high": 17235460.0,
-      "cache_read_low": 17013500,
-      "cache_read_high": 54086600,
-      "cache_write_low": 3517500,
-      "cache_write_high": 5303400
-    }
-  },
-  "long_session_cache_read_0.05": {
-    "note": "Same assumptions, cache reads priced at 0.05x, the published Opus 5.5 and Sonnet 5.5 rate.",
-    "ratio_0.25_over_0.95": {
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.6347459045673156,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 9195675.0,
-      "api_equivalent_high": 14487175.0,
-      "cache_read_low": 17013500,
-      "cache_read_high": 53803500,
-      "cache_write_low": 3517500,
-      "cache_write_high": 5288500
-    }
-  },
-  "long_session_uncached": {
-    "note": "Caching off. Every prompt token is billed as fresh input. This is a bound, not Claude Code's default.",
-    "ratio_0.25_over_0.95": {
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.36213357209178937,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 21841000.0,
-      "api_equivalent_high": 60312000.0,
-      "cache_read_low": 0,
-      "cache_read_high": 0,
-      "cache_write_low": 0,
-      "cache_write_high": 0
-    }
-  },
-  "short_session": {
-    "assumptions": {
-      "turns": 30,
-      "growth_per_turn": 8000,
-      "output_per_turn": 2000
-    },
-    "ratio_0.25_over_0.95": {
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.7516377649325626,
-      "api_equivalent_ratio": 0.8831223510259073,
-      "output_tokens_ratio": 1.0333333333333334,
-      "compaction_count_low": 1,
-      "compaction_count_high": 0,
-      "prompt_tokens_low": 3901000,
-      "prompt_tokens_high": 5190000,
-      "api_equivalent_low": 1573150.0,
-      "api_equivalent_high": 1781350.0,
-      "cache_read_low": 3441500,
-      "cache_read_high": 4683500,
-      "cache_write_low": 459500,
-      "cache_write_high": 506500
-    },
-    "low": {
-      "label": "short_session@0.25",
-      "threshold_tokens": 250000,
-      "threshold_fraction_of_window": 0.25,
-      "productive_turns": 30,
-      "rework_turns": 0,
-      "compactions": 1,
-      "prompt_tokens": 3901000,
-      "input_tokens": 0,
-      "cache_read_tokens": 3441500,
-      "cache_write_tokens": 459500,
-      "output_tokens": 62000,
-      "api_equivalent_cost": 1573150.0,
-      "peak_prompt_tokens": 251000,
-      "warnings": []
-    },
-    "high": {
-      "label": "short_session@0.95",
-      "threshold_tokens": 950000,
-      "threshold_fraction_of_window": 0.95,
-      "productive_turns": 30,
-      "rework_turns": 0,
-      "compactions": 0,
-      "prompt_tokens": 5190000,
-      "input_tokens": 0,
-      "cache_read_tokens": 4683500,
-      "cache_write_tokens": 506500,
-      "output_tokens": 60000,
-      "api_equivalent_cost": 1781350.0,
-      "peak_prompt_tokens": 318000,
-      "warnings": [
-        "no_compaction: the session never reached the threshold"
-      ]
-    }
-  },
-  "sensitivity_cache_hit_rate": [
+  "disclaimer": "Model output under stated assumptions. Not a measurement of any Claude account, and not a prediction of the five-hour or weekly usage meter. Anthropic has not published meter weights. Cold rewrites are priced as cache writes at the call's write rate (1.25x on compaction, 2x on a 1-hour main conversation), matching the reference call-level simulator. A 1.0x fresh-input reading of a cold prefix would differ.",
+  "caching": "physical prefix: a warm call reads the previous prompt and writes previous output plus the new tail",
+  "scenarios": [
     {
-      "cache_hit_rate": 0.0,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.3528968216732128,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 42121200.0,
-      "api_equivalent_high": 119358400.0,
-      "cache_read_low": 132000,
-      "cache_read_high": 24000,
-      "cache_write_low": 20399000,
-      "cache_write_high": 59068000
+      "name": "S1",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 28033460.0,
+      "api_lo": 13626420.0,
+      "api_saving": 2.057287240522456,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.935321249918794,
+      "h_zero_saving": 0.9176784847013113,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
     },
     {
-      "cache_hit_rate": 0.25,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.36423641958653014,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 33680450.0,
-      "api_equivalent_high": 92468650.0,
-      "cache_read_low": 4574500,
-      "cache_read_high": 14176500,
-      "cache_write_low": 15956500,
-      "cache_write_high": 44915500
+      "name": "S1b",
+      "trigger_hi": 967000,
+      "trigger_lo": 217000,
+      "compactions_hi": 2,
+      "compactions_lo": 12,
+      "warnings_lo": [],
+      "api_hi": 28033460.0,
+      "api_lo": 13030660.0,
+      "api_saving": 2.1513461328896617,
+      "raw_prompt_saving": 3.3854500015238793,
+      "read_full_saving": 3.2372361614627367,
+      "h_zero_saving": 0.8991731604306704,
+      "prompt_hi": 222160000,
+      "prompt_lo": 65622000
     },
     {
-      "cache_hit_rate": 0.5,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.38487531812823944,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 25239700.0,
-      "api_equivalent_high": 65578900.0,
-      "cache_read_low": 9017000,
-      "cache_read_high": 28329000,
-      "cache_write_low": 11514000,
-      "cache_write_high": 30763000
+      "name": "S1c",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 3,
+      "compactions_lo": 15,
+      "warnings_lo": [],
+      "api_hi": 66774620.0,
+      "api_lo": 28463180.0,
+      "api_saving": 2.3459999901627295,
+      "raw_prompt_saving": 3.183138973184219,
+      "read_full_saving": 3.094330392392461,
+      "h_zero_saving": 0.9254385161018347,
+      "prompt_hi": 569992600,
+      "prompt_lo": 179066200
     },
     {
-      "cache_hit_rate": 0.75,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.434203129301109,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 16798950.0,
-      "api_equivalent_high": 38689150.0,
-      "cache_read_low": 13459500,
-      "cache_read_high": 42481500,
-      "cache_write_low": 7071500,
-      "cache_write_high": 16610500
+      "name": "S2",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 0,
+      "compactions_lo": 0,
+      "warnings_lo": [
+        "no_compaction: the session never reached the trigger"
+      ],
+      "api_hi": 700360.0,
+      "api_lo": 700360.0,
+      "api_saving": 1.0,
+      "raw_prompt_saving": 1.0,
+      "read_full_saving": 1.0,
+      "h_zero_saving": 1.0,
+      "prompt_hi": 2961000,
+      "prompt_lo": 2961000
     },
     {
-      "cache_hit_rate": 0.9,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.5202546629838664,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 11734500.0,
-      "api_equivalent_high": 22555300.0,
-      "cache_read_low": 16125000,
-      "cache_read_high": 50973000,
-      "cache_write_low": 4406000,
-      "cache_write_high": 8119000
+      "name": "S2b",
+      "trigger_hi": 967000,
+      "trigger_lo": 100000,
+      "compactions_hi": 0,
+      "compactions_lo": 2,
+      "warnings_lo": [],
+      "api_hi": 700360.0,
+      "api_lo": 753380.0,
+      "api_saving": 0.9296238286123868,
+      "raw_prompt_saving": 1.3525488763018454,
+      "read_full_saving": 1.2732166890982504,
+      "h_zero_saving": 0.7562904385334291,
+      "prompt_hi": 2961000,
+      "prompt_lo": 2189200
     },
     {
-      "cache_hit_rate": 0.95,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.584860295680067,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 10046350.0,
-      "api_equivalent_high": 17177350.0,
-      "cache_read_low": 17013500,
-      "cache_read_high": 53803500,
-      "cache_write_low": 3517500,
-      "cache_write_high": 5288500
+      "name": "S3-0",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 28033460.0,
+      "api_lo": 13626420.0,
+      "api_saving": 2.057287240522456,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.935321249918794,
+      "h_zero_saving": 0.9176784847013113,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
     },
     {
-      "cache_hit_rate": 1.0,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.7083580521043443,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 8358200.0,
-      "api_equivalent_high": 11799400.0,
-      "cache_read_low": 17902000,
-      "cache_read_high": 56634000,
-      "cache_write_low": 2629000,
-      "cache_write_high": 2458000
+      "name": "S3-3",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 12,
+      "warnings_lo": [],
+      "api_hi": 28573280.0,
+      "api_lo": 15233480.0,
+      "api_saving": 1.8756895994874447,
+      "raw_prompt_saving": 2.805849211404946,
+      "read_full_saving": 2.6999333883739256,
+      "h_zero_saving": 0.8276880133125771,
+      "prompt_hi": 226397800,
+      "prompt_lo": 80687800
+    },
+    {
+      "name": "S3-6",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 14,
+      "warnings_lo": [],
+      "api_hi": 29208620.0,
+      "api_lo": 17428340.0,
+      "api_saving": 1.6759266803378865,
+      "raw_prompt_saving": 2.5158911562261004,
+      "read_full_saving": 2.420907515199615,
+      "h_zero_saving": 0.7349476439790575,
+      "prompt_hi": 231590800,
+      "prompt_lo": 92051200
+    },
+    {
+      "name": "S3-10",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 18,
+      "warnings_lo": [],
+      "api_hi": 30061420.0,
+      "api_lo": 21358780.0,
+      "api_saving": 1.4074502382626723,
+      "raw_prompt_saving": 2.1651873391344756,
+      "read_full_saving": 2.0787998251673336,
+      "h_zero_saving": 0.5990786834088714,
+      "prompt_hi": 238571600,
+      "prompt_lo": 110185200
+    },
+    {
+      "name": "S3-15",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 27,
+      "warnings_lo": [],
+      "api_hi": 31280200.0,
+      "api_lo": 30472380.0,
+      "api_saving": 1.0265099083169742,
+      "raw_prompt_saving": 1.6375780534290858,
+      "read_full_saving": 1.5668873302433,
+      "h_zero_saving": 0.4178013364819374,
+      "prompt_hi": 248825400,
+      "prompt_lo": 151947200
+    },
+    {
+      "name": "S4",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 33134580.0,
+      "api_lo": 14530820.0,
+      "api_saving": 2.280296638455366,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.9519479345566304,
+      "h_zero_saving": 1.5138977296838532,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S4b",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 4,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 19008500.0,
+      "api_lo": 14530820.0,
+      "api_saving": 1.308150537960005,
+      "raw_prompt_saving": 1.7712069987486554,
+      "read_full_saving": 1.7175268914399349,
+      "h_zero_saving": 0.8410248249522597,
+      "prompt_hi": 129088400,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S4c",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 57574660.0,
+      "api_lo": 22163880.0,
+      "api_saving": 2.5976796481482483,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.9860095294972324,
+      "h_zero_saving": 2.389464163183831,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S6",
+      "trigger_hi": 200000,
+      "trigger_lo": 50000,
+      "compactions_hi": 14,
+      "compactions_lo": 476,
+      "warnings_lo": [],
+      "api_hi": 12716080.0,
+      "api_lo": 41526160.0,
+      "api_saving": 0.306218537904781,
+      "raw_prompt_saving": 1.26098571516913,
+      "read_full_saving": 0.9135809365277088,
+      "h_zero_saving": 0.17965828261347805,
+      "prompt_hi": 61174200,
+      "prompt_lo": 48513000
+    },
+    {
+      "name": "S6b",
+      "trigger_hi": 200000,
+      "trigger_lo": 100000,
+      "compactions_hi": 14,
+      "compactions_lo": 43,
+      "warnings_lo": [],
+      "api_hi": 12716080.0,
+      "api_lo": 12391560.0,
+      "api_saving": 1.0261887930171827,
+      "raw_prompt_saving": 1.5665608194622278,
+      "read_full_saving": 1.4707979802067455,
+      "h_zero_saving": 0.7772314246221477,
+      "prompt_hi": 61174200,
+      "prompt_lo": 39050000
+    },
+    {
+      "name": "S7-0.1",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 28033460.0,
+      "api_lo": 13626420.0,
+      "api_saving": 2.057287240522456,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.935321249918794,
+      "h_zero_saving": 0.9176784847013113,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S7-0.05",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 17039930.0,
+      "api_lo": 10107610.0,
+      "api_saving": 1.685851551454795,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.935321249918794,
+      "h_zero_saving": 0.9176784847013113,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S7-0.025",
+      "trigger_hi": 967000,
+      "trigger_lo": 250000,
+      "compactions_hi": 2,
+      "compactions_lo": 10,
+      "warnings_lo": [],
+      "api_hi": 11543165.0,
+      "api_lo": 8348205.0,
+      "api_saving": 1.3827122117868451,
+      "raw_prompt_saving": 3.048231652433536,
+      "read_full_saving": 2.935321249918794,
+      "h_zero_saving": 0.9176784847013113,
+      "prompt_hi": 222160000,
+      "prompt_lo": 72881600
+    },
+    {
+      "name": "S8",
+      "trigger_hi": 967000,
+      "trigger_lo": 62500,
+      "compactions_hi": 2,
+      "compactions_lo": 158,
+      "warnings_lo": [
+        "compounding: an absolute window and CLAUDE_AUTOCOMPACT_PCT_OVERRIDE are both set. The percentage applies to the window. Reserve is not subtracted again after the percentage. Whether production does the same is unverified; check compactMetadata.preTokens."
+      ],
+      "api_hi": 28033460.0,
+      "api_lo": 19547920.0,
+      "api_saving": 1.434089151173117,
+      "raw_prompt_saving": 6.214509099657049,
+      "read_full_saving": 4.925115106909903,
+      "h_zero_saving": 0.36373261465903073,
+      "prompt_hi": 222160000,
+      "prompt_lo": 35748600
+    },
+    {
+      "name": "S8b",
+      "trigger_hi": 250000,
+      "trigger_lo": 62500,
+      "compactions_hi": 10,
+      "compactions_lo": 158,
+      "warnings_lo": [
+        "compounding: an absolute window and CLAUDE_AUTOCOMPACT_PCT_OVERRIDE are both set. The percentage applies to the window. Reserve is not subtracted again after the percentage. Whether production does the same is unverified; check compactMetadata.preTokens."
+      ],
+      "api_hi": 13626420.0,
+      "api_lo": 19547920.0,
+      "api_saving": 0.6970777453560276,
+      "raw_prompt_saving": 2.0387259920668224,
+      "read_full_saving": 1.6778794167916564,
+      "h_zero_saving": 0.39636171134318304,
+      "prompt_hi": 72881600,
+      "prompt_lo": 35748600
     }
   ],
-  "sensitivity_rework": [
-    {
-      "rework_turns_per_compaction": 0,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3474412780071752,
-      "api_equivalent_ratio": 0.584860295680067,
-      "output_tokens_ratio": 1.0737704918032787,
-      "compaction_count_low": 11,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 20531000,
-      "prompt_tokens_high": 59092000,
-      "api_equivalent_low": 10046350.0,
-      "api_equivalent_high": 17177350.0,
-      "cache_read_low": 17013500,
-      "cache_read_high": 53803500,
-      "cache_write_low": 3517500,
-      "cache_write_high": 5288500
+  "s1": {
+    "name": "S1",
+    "trigger_hi": 967000,
+    "trigger_lo": 250000,
+    "compactions_hi": 2,
+    "compactions_lo": 10,
+    "warnings_lo": [],
+    "api_hi": 28033460.0,
+    "api_lo": 13626420.0,
+    "api_saving": 2.057287240522456,
+    "raw_prompt_saving": 3.048231652433536,
+    "read_full_saving": 2.935321249918794,
+    "h_zero_saving": 0.9176784847013113,
+    "prompt_hi": 222160000,
+    "prompt_lo": 72881600
+  },
+  "s1_totals": {
+    "hi": {
+      "calls": 482,
+      "productive_calls": 480,
+      "rework_calls": 0,
+      "compactions": 2,
+      "idle_compactions": 0,
+      "cold_rebuilds": 0,
+      "input_tokens": 0,
+      "cache_read_tokens": 219870600,
+      "cache_write_tokens": 2289400,
+      "output_tokens": 294000,
+      "prompt_tokens": 222160000,
+      "peak_prompt_tokens": 967400,
+      "trigger_tokens": 967000
     },
-    {
-      "rework_turns_per_compaction": 1,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.35929464848545173,
-      "api_equivalent_ratio": 0.6160574884734603,
-      "output_tokens_ratio": 1.1774193548387097,
-      "compaction_count_low": 13,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 21659000,
-      "prompt_tokens_high": 60282000,
-      "api_equivalent_low": 10764200.0,
-      "api_equivalent_high": 17472720.0,
-      "cache_read_low": 17902000,
-      "cache_read_high": 54911200,
-      "cache_write_low": 3757000,
-      "cache_write_high": 5370800
-    },
-    {
-      "rework_turns_per_compaction": 2,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.3741288347554224,
-      "api_equivalent_ratio": 0.6498545030831154,
-      "output_tokens_ratio": 1.2857142857142858,
-      "compaction_count_low": 14,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 22976000,
-      "prompt_tokens_high": 61412000,
-      "api_equivalent_low": 11539070.0,
-      "api_equivalent_high": 17756390.0,
-      "cache_read_low": 18964700,
-      "cache_read_high": 55961900,
-      "cache_write_low": 4011300,
-      "cache_write_high": 5450100
-    },
-    {
-      "rework_turns_per_compaction": 3,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.4098119952759424,
-      "api_equivalent_ratio": 0.6925439635757263,
-      "output_tokens_ratio": 1.375,
-      "compaction_count_low": 14,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 25678000,
-      "prompt_tokens_high": 62658000,
-      "api_equivalent_low": 12509200.0,
-      "api_equivalent_high": 18062680.0,
-      "cache_read_low": 21372000,
-      "cache_read_high": 57122800,
-      "cache_write_low": 4306000,
-      "cache_write_high": 5535200
-    },
-    {
-      "rework_turns_per_compaction": 4,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.4396443776609066,
-      "api_equivalent_ratio": 0.7493244254962335,
-      "output_tokens_ratio": 1.5384615384615385,
-      "compaction_count_low": 16,
-      "compaction_count_high": 2,
-      "prompt_tokens_low": 28088000,
-      "prompt_tokens_high": 63888000,
-      "api_equivalent_low": 13761980.0,
-      "api_equivalent_high": 18365850.0,
-      "cache_read_low": 23375800,
-      "cache_read_high": 58268500,
-      "cache_write_low": 4712200,
-      "cache_write_high": 5619500
-    },
-    {
-      "rework_turns_per_compaction": 5,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.4881876398426047,
-      "api_equivalent_ratio": 0.8275078896554071,
-      "output_tokens_ratio": 1.6956521739130435,
-      "compaction_count_low": 19,
-      "compaction_count_high": 3,
-      "prompt_tokens_low": 31637000,
-      "prompt_tokens_high": 64805000,
-      "api_equivalent_low": 15564960.0,
-      "api_equivalent_high": 18809440.0,
-      "cache_read_low": 26341600,
-      "cache_read_high": 59042400,
-      "cache_write_low": 5295400,
-      "cache_write_high": 5762600
-    },
-    {
-      "rework_turns_per_compaction": 6,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.5366203347368739,
-      "api_equivalent_ratio": 0.8823535542939097,
-      "output_tokens_ratio": 1.7943262411347518,
-      "compaction_count_low": 19,
-      "compaction_count_high": 3,
-      "prompt_tokens_low": 35557000,
-      "prompt_tokens_high": 66261000,
-      "api_equivalent_low": 16930900.0,
-      "api_equivalent_high": 19188340.0,
-      "cache_read_low": 29849000,
-      "cache_read_high": 60391400,
-      "cache_write_low": 5708000,
-      "cache_write_high": 5869600
-    },
-    {
-      "rework_turns_per_compaction": 7,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.6149221263803496,
-      "api_equivalent_ratio": 1.0031124745989277,
-      "output_tokens_ratio": 2.0555555555555554,
-      "compaction_count_low": 22,
-      "compaction_count_high": 3,
-      "prompt_tokens_low": 40706000,
-      "prompt_tokens_high": 66197000,
-      "api_equivalent_low": 19330820.0,
-      "api_equivalent_high": 19270840.0,
-      "cache_read_low": 34232200,
-      "cache_read_high": 60296400,
-      "cache_write_low": 6473800,
-      "cache_write_high": 5900600
-    },
-    {
-      "rework_turns_per_compaction": 8,
-      "low_threshold_tokens": 250000,
-      "high_threshold_tokens": 950000,
-      "prompt_tokens_ratio": 0.6880118237893436,
-      "api_equivalent_ratio": 1.0824406943318992,
-      "output_tokens_ratio": 2.163265306122449,
-      "compaction_count_low": 22,
-      "compaction_count_high": 3,
-      "prompt_tokens_low": 45620000,
-      "prompt_tokens_high": 66307000,
-      "api_equivalent_low": 20985570.0,
-      "api_equivalent_high": 19387270.0,
-      "cache_read_low": 38649700,
-      "cache_read_high": 60366700,
-      "cache_write_low": 6970300,
-      "cache_write_high": 5940300
+    "lo": {
+      "calls": 490,
+      "productive_calls": 480,
+      "rework_calls": 0,
+      "compactions": 10,
+      "idle_compactions": 0,
+      "cold_rebuilds": 0,
+      "input_tokens": 0,
+      "cache_read_tokens": 70376200,
+      "cache_write_tokens": 2505400,
+      "output_tokens": 318000,
+      "prompt_tokens": 72881600,
+      "peak_prompt_tokens": 249800,
+      "trigger_tokens": 250000
     }
-  ]
+  },
+  "zero_effect_control": {
+    "note": "Neither trigger fires. The setting does nothing.",
+    "trigger_hi": 967000,
+    "trigger_lo": 250000,
+    "compactions_hi": 0,
+    "compactions_lo": 0,
+    "prompt_tokens": 1590000,
+    "api_saving": 1.0,
+    "first_prompt": 32000,
+    "last_prompt": 127000
+  },
+  "eoq": {
+    "formula": "T* \u2248 R + sqrt(2 * K * (g + o) / r)",
+    "R": 46000,
+    "growth_per_call": 4600,
+    "K_at_read_0.1": 70250.0,
+    "estimate": {
+      "0.1": 126392.78574598594,
+      "0.05": 158880.46775239726,
+      "0.025": 205059.73720586867
+    },
+    "simulated_best_10k_grid": {
+      "0.1": {
+        "best_trigger": 120000,
+        "best_api": 11952300.0,
+        "saving_vs_967k": 2.3454448097855645,
+        "curve": [
+          {
+            "trigger": 70000,
+            "api": 15369560.0,
+            "compactions": 95
+          },
+          {
+            "trigger": 80000,
+            "api": 13632360.0,
+            "compactions": 67
+          },
+          {
+            "trigger": 90000,
+            "api": 12802100.0,
+            "compactions": 52
+          },
+          {
+            "trigger": 100000,
+            "api": 12391560.0,
+            "compactions": 43
+          },
+          {
+            "trigger": 110000,
+            "api": 12092340.0,
+            "compactions": 34
+          },
+          {
+            "trigger": 120000,
+            "api": 11952300.0,
+            "compactions": 29
+          },
+          {
+            "trigger": 130000,
+            "api": 11956420.0,
+            "compactions": 26
+          },
+          {
+            "trigger": 140000,
+            "api": 11966060.0,
+            "compactions": 23
+          },
+          {
+            "trigger": 150000,
+            "api": 12035380.0,
+            "compactions": 21
+          },
+          {
+            "trigger": 160000,
+            "api": 12119420.0,
+            "compactions": 19
+          },
+          {
+            "trigger": 170000,
+            "api": 12289060.0,
+            "compactions": 17
+          },
+          {
+            "trigger": 180000,
+            "api": 12432780.0,
+            "compactions": 16
+          },
+          {
+            "trigger": 190000,
+            "api": 12578800.0,
+            "compactions": 15
+          },
+          {
+            "trigger": 200000,
+            "api": 12716080.0,
+            "compactions": 14
+          },
+          {
+            "trigger": 210000,
+            "api": 12855660.0,
+            "compactions": 13
+          },
+          {
+            "trigger": 220000,
+            "api": 13030660.0,
+            "compactions": 12
+          },
+          {
+            "trigger": 230000,
+            "api": 13291260.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 240000,
+            "api": 13463380.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 250000,
+            "api": 13626420.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 260000,
+            "api": 13810500.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 270000,
+            "api": 14016780.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 280000,
+            "api": 14249620.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 290000,
+            "api": 14519420.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 300000,
+            "api": 14600460.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 310000,
+            "api": 14813980.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 320000,
+            "api": 15159980.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 330000,
+            "api": 15203880.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 340000,
+            "api": 15428900.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 350000,
+            "api": 15735380.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 360000,
+            "api": 16027220.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 370000,
+            "api": 16071460.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 380000,
+            "api": 16192980.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 390000,
+            "api": 16391780.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 400000,
+            "api": 16834880.0,
+            "compactions": 6
+          }
+        ]
+      },
+      "0.05": {
+        "best_trigger": 160000,
+        "best_api": 9659210.0,
+        "saving_vs_967k": 1.7641121789463114,
+        "curve": [
+          {
+            "trigger": 70000,
+            "api": 13860680.0,
+            "compactions": 95
+          },
+          {
+            "trigger": 80000,
+            "api": 12042880.0,
+            "compactions": 67
+          },
+          {
+            "trigger": 90000,
+            "api": 11119250.0,
+            "compactions": 52
+          },
+          {
+            "trigger": 100000,
+            "api": 10608880.0,
+            "compactions": 43
+          },
+          {
+            "trigger": 110000,
+            "api": 10154170.0,
+            "compactions": 34
+          },
+          {
+            "trigger": 120000,
+            "api": 9914650.0,
+            "compactions": 29
+          },
+          {
+            "trigger": 130000,
+            "api": 9815010.0,
+            "compactions": 26
+          },
+          {
+            "trigger": 140000,
+            "api": 9718130.0,
+            "compactions": 23
+          },
+          {
+            "trigger": 150000,
+            "api": 9684990.0,
+            "compactions": 21
+          },
+          {
+            "trigger": 160000,
+            "api": 9659210.0,
+            "compactions": 19
+          },
+          {
+            "trigger": 170000,
+            "api": 9676230.0,
+            "compactions": 17
+          },
+          {
+            "trigger": 180000,
+            "api": 9714190.0,
+            "compactions": 16
+          },
+          {
+            "trigger": 190000,
+            "api": 9753300.0,
+            "compactions": 15
+          },
+          {
+            "trigger": 200000,
+            "api": 9788040.0,
+            "compactions": 14
+          },
+          {
+            "trigger": 210000,
+            "api": 9823930.0,
+            "compactions": 13
+          },
+          {
+            "trigger": 220000,
+            "api": 9877530.0,
+            "compactions": 12
+          },
+          {
+            "trigger": 230000,
+            "api": 9973930.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 240000,
+            "api": 10059990.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 250000,
+            "api": 10107610.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 260000,
+            "api": 10199650.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 270000,
+            "api": 10268890.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 280000,
+            "api": 10385310.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 290000,
+            "api": 10486310.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 300000,
+            "api": 10526830.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 310000,
+            "api": 10633590.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 320000,
+            "api": 10806590.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 330000,
+            "api": 10794640.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 340000,
+            "api": 10907150.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 350000,
+            "api": 11060390.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 360000,
+            "api": 11172410.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 370000,
+            "api": 11194530.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 380000,
+            "api": 11255290.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 390000,
+            "api": 11354690.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 400000,
+            "api": 11576240.0,
+            "compactions": 6
+          }
+        ]
+      },
+      "0.025": {
+        "best_trigger": 220000,
+        "best_api": 8300965.0,
+        "saving_vs_967k": 1.3905810950895467,
+        "curve": [
+          {
+            "trigger": 70000,
+            "api": 13106240.0,
+            "compactions": 95
+          },
+          {
+            "trigger": 80000,
+            "api": 11248140.0,
+            "compactions": 67
+          },
+          {
+            "trigger": 90000,
+            "api": 10277825.0,
+            "compactions": 52
+          },
+          {
+            "trigger": 100000,
+            "api": 9717540.0,
+            "compactions": 43
+          },
+          {
+            "trigger": 110000,
+            "api": 9185085.0,
+            "compactions": 34
+          },
+          {
+            "trigger": 120000,
+            "api": 8895825.0,
+            "compactions": 29
+          },
+          {
+            "trigger": 130000,
+            "api": 8744305.0,
+            "compactions": 26
+          },
+          {
+            "trigger": 140000,
+            "api": 8594165.0,
+            "compactions": 23
+          },
+          {
+            "trigger": 150000,
+            "api": 8509795.0,
+            "compactions": 21
+          },
+          {
+            "trigger": 160000,
+            "api": 8429105.0,
+            "compactions": 19
+          },
+          {
+            "trigger": 170000,
+            "api": 8369815.0,
+            "compactions": 17
+          },
+          {
+            "trigger": 180000,
+            "api": 8354895.0,
+            "compactions": 16
+          },
+          {
+            "trigger": 190000,
+            "api": 8340550.0,
+            "compactions": 15
+          },
+          {
+            "trigger": 200000,
+            "api": 8324020.0,
+            "compactions": 14
+          },
+          {
+            "trigger": 210000,
+            "api": 8308065.0,
+            "compactions": 13
+          },
+          {
+            "trigger": 220000,
+            "api": 8300965.0,
+            "compactions": 12
+          },
+          {
+            "trigger": 230000,
+            "api": 8315265.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 240000,
+            "api": 8358295.0,
+            "compactions": 11
+          },
+          {
+            "trigger": 250000,
+            "api": 8348205.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 260000,
+            "api": 8394225.0,
+            "compactions": 10
+          },
+          {
+            "trigger": 270000,
+            "api": 8394945.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 280000,
+            "api": 8453155.0,
+            "compactions": 9
+          },
+          {
+            "trigger": 290000,
+            "api": 8469755.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 300000,
+            "api": 8490015.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 310000,
+            "api": 8543395.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 320000,
+            "api": 8629895.0,
+            "compactions": 8
+          },
+          {
+            "trigger": 330000,
+            "api": 8590020.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 340000,
+            "api": 8646275.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 350000,
+            "api": 8722895.0,
+            "compactions": 7
+          },
+          {
+            "trigger": 360000,
+            "api": 8745005.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 370000,
+            "api": 8756065.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 380000,
+            "api": 8786445.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 390000,
+            "api": 8836145.0,
+            "compactions": 6
+          },
+          {
+            "trigger": 400000,
+            "api": 8946920.0,
+            "compactions": 6
+          }
+        ]
+      }
+    },
+    "note": "The closed form treats compaction overhead K as constant. The grid is the same session as S1 with the trigger moved. For read multipliers 0.05 and 0.025, K is recomputed with that r. Optimum near 150k-200k is the 0.05x (Opus 5.5 / Sonnet 5.5 list price) region, not a reason to pick 25% of a 1M window."
+  }
 }

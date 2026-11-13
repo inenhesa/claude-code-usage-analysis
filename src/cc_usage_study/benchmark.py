@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Iterable
 
@@ -29,8 +30,12 @@ from typing import Iterable
 AUTOCOMPACT_WINDOW_MIN = 100_000
 AUTOCOMPACT_WINDOW_MAX = 1_000_000
 
-DEFAULT_PERCENTS = (95, 75, 50, 25, 10)
+# 95/75/50/10 stay available, but the default grid is the documented default
+# trigger versus 25%. 95% is not a published default, and on native 1M models
+# the published approximation is about 967K.
+DEFAULT_PERCENTS = (None, 25)
 DEFAULT_CONTEXT_WINDOW = 1_000_000
+SESSION_NAMESPACE = uuid.UUID("6f1b9a0e-4c3d-4a7e-9b2a-0d5e8c1f4a77")
 
 USAGE_KEYS = (
     "input_tokens",
@@ -63,6 +68,7 @@ def discover_tasks(root: Path | None = None) -> list[dict]:
     for task_json in sorted(base.glob("*/task.json")):
         payload = json.loads(task_json.read_text(encoding="utf-8"))
         payload["dir"] = str(task_json.parent)
+        payload["smoke"] = bool(payload.get("smoke", payload.get("schema", 1) == 1 and "generator" not in payload))
         found.append(payload)
     return found
 
@@ -141,52 +147,126 @@ def _settings_for_arm(method: str, percent: float, window: dict) -> dict:
     return {"env": env, "autocompact_arg": autocompact_arg, "caveats": caveats}
 
 
+def session_id_for(task_id: str, method: str, percent: float | None, repeat: int) -> str:
+    key = f"{task_id}:{method}:{percent}:{repeat}"
+    return str(uuid.uuid5(SESSION_NAMESPACE, key))
+
+
 def build_arm(
     task: dict,
     *,
     method: str,
-    percent: float,
+    percent: float | None,
     context_window: int,
     model: str | None,
     max_turns: int,
     include_permission_prompts_flag: bool,
     persist_session: bool,
+    isolate: bool = True,
+    repeat: int = 1,
 ) -> dict:
-    window = window_tokens_for_percent(percent, context_window)
-    settings = _settings_for_arm(method, percent, window)
+    if method == "default" or percent is None:
+        method = "default" if method == "default" or percent is None else method
+    if method == "default":
+        window = {
+            "percent": None,
+            "context_window": context_window,
+            "raw_tokens": None,
+            "autocompact_tokens": None,
+            "clamped": False,
+        }
+        settings = {
+            "env": {"CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "100"},
+            "autocompact_arg": "auto",
+            "caveats": [
+                "Default arm: --autocompact auto. Setting the percentage override to 100 cannot raise the trigger, so a user-level 25 in the overlaid settings is replaced and the documented default remains.",
+                "On native 1M models that default is about 967K, not 95 percent.",
+            ],
+        }
+        percent_value = None
+    elif method == "compound":
+        window = window_tokens_for_percent(25, context_window)
+        settings = _settings_for_arm("window", 25, window)
+        settings["env"]["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] = "25"
+        settings["caveats"].append(
+            "Compound arm: absolute window and percentage together. 25 percent of a 250k window is 62,500. This is not a 250k experiment."
+        )
+        percent_value = 25
+    elif method == "tui":
+        window = window_tokens_for_percent(float(percent or 25), context_window)
+        settings = _settings_for_arm("window", float(percent or 25), window)
+        settings["caveats"].append(
+            "TUI arm: interactive claude inside tmux, entrypoint cli. This is the arm whose meter delta can speak to interactive use. claude -p is sdk-cli."
+        )
+        percent_value = float(percent or 25)
+    else:
+        window = window_tokens_for_percent(float(percent), context_window)
+        settings = _settings_for_arm(method, float(percent), window)
+        percent_value = float(percent)
     prompt_path = Path(task["dir"]) / task.get("prompt_file", "prompt.txt")
-    prompt = prompt_path.read_text(encoding="utf-8").strip()
-    argv = [
-        "claude",
-        "-p",
-        prompt,
-        "--output-format",
-        "stream-json",
-        "--verbose",
-        "--permission-mode",
-        "acceptEdits",
-        "--allowedTools",
-        "Bash,Read,Edit",
-        "--max-turns",
-        str(max_turns),
-        "--autocompact",
-        settings["autocompact_arg"],
-        "--settings",
-        json.dumps({"env": settings["env"]}),
-    ]
-    if model:
+    prompt = prompt_path.read_text(encoding="utf-8").strip() if prompt_path.is_file() else ""
+    sid = session_id_for(task["id"], method, percent_value, repeat)
+    if method == "tui":
+        argv = [
+            "tmux",
+            "new-session",
+            "-d",
+            "-s",
+            f"arm-{sid[:8]}",
+            "claude",
+            "--session-id",
+            sid,
+            "--settings",
+            json.dumps({"env": settings["env"]}),
+        ]
+    else:
+        argv = [
+            "claude",
+            "-p",
+            prompt,
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--permission-mode",
+            "acceptEdits",
+            "--allowedTools",
+            "Bash,Read,Edit",
+            "--max-turns",
+            str(task.get("max_turns", max_turns)),
+            "--session-id",
+            sid,
+            "--autocompact",
+            settings["autocompact_arg"],
+            "--settings",
+            json.dumps({"env": settings["env"], "idleCompaction": False}),
+        ]
+        if isolate:
+            argv.extend(
+                [
+                    "--setting-sources",
+                    "project",
+                    "--strict-mcp-config",
+                    "--mcp-config",
+                    '{"mcpServers":{}}',
+                ]
+            )
+    if model and method != "tui":
         argv.extend(["--model", model])
-    if include_permission_prompts_flag:
+    if include_permission_prompts_flag and method != "tui":
         # Requires Claude Code v2.1.259 or later.
         argv.extend(["--permission-prompts", "none"])
-    if not persist_session:
+    if not persist_session and method != "tui":
         argv.append("--no-session-persistence")
-    argv.extend(["--append-system-prompt", "You are in a fixed benchmark. Do the task and stop."])
+    if method != "tui":
+        argv.extend(["--append-system-prompt", "You are in a fixed benchmark. Do the task and stop."])
     return {
         "task_id": task["id"],
         "task_dir": task["dir"],
         "method": method,
-        "percent": percent,
+        "percent": percent_value,
+        "session_id": sid,
+        "entrypoint_expected": "cli" if method == "tui" else "sdk-cli",
+        "valid_for_compaction_claims": task.get("smoke") is not True,
         "window": window,
         "settings_env": settings["env"],
         "argv": argv,
@@ -213,26 +293,58 @@ def plan_arms(
     include_permission_prompts_flag: bool = True,
     persist_session: bool = True,
     repeats: int = 1,
+    include_smoke: bool = True,
 ) -> list[dict]:
     chosen = tasks if tasks is not None else discover_tasks()
     arms = []
     for task in chosen:
+        if task.get("smoke") and not include_smoke:
+            continue
         for method in methods:
             for percent in percents:
                 for repeat in range(1, repeats + 1):
+                    value = None if percent is None else float(percent)
                     arm = build_arm(
                         task,
                         method=method,
-                        percent=float(percent),
+                        percent=value,
                         context_window=context_window,
                         model=model,
-                        max_turns=max_turns,
+                        max_turns=task.get("max_turns", max_turns) if task.get("schema") == 2 else max_turns,
                         include_permission_prompts_flag=include_permission_prompts_flag,
                         persist_session=persist_session,
+                        repeat=repeat,
                     )
                     arm["repeat"] = repeat
                     arms.append(arm)
     return arms
+
+
+def compaction_claim_validity(
+    parsed: dict,
+    *,
+    expected_trigger: int | None,
+    timed_out: bool = False,
+    tolerance: float = 0.15,
+) -> dict:
+    """An arm is excluded from compaction claims when the trigger never fired
+    or the first boundary is far from the configured trigger.
+
+    The 15 percent tolerance is a design target for the pilot, not a measured constant.
+    """
+    reasons = []
+    if timed_out:
+        reasons.append("timed_out")
+    if parsed.get("compaction_markers", 0) == 0:
+        reasons.append("zero_boundaries")
+    pres = parsed.get("pre_tokens") or []
+    if expected_trigger and pres:
+        first = pres[0]
+        if abs(first - expected_trigger) / expected_trigger > tolerance:
+            reasons.append("pre_tokens_far_from_trigger")
+    elif expected_trigger and not pres and parsed.get("compaction_markers", 0):
+        reasons.append("boundary_missing_pre_tokens")
+    return {"valid_for_compaction_claims": not reasons, "reasons": reasons}
 
 
 def _numeric_usage(raw: dict) -> dict[str, int]:
@@ -269,6 +381,8 @@ def parse_stream_text(text: str) -> dict:
     Message text, tool inputs, and thinking are discarded.
     """
     compactions = 0
+    other_compact = 0
+    pre_tokens: list[int] = []
     result = None
     lines = 0
     bad_lines = 0
@@ -286,14 +400,23 @@ def parse_stream_text(text: str) -> dict:
             bad_lines += 1
             continue
         subtype = obj.get("subtype")
-        if isinstance(subtype, str) and "compact" in subtype.lower():
+        if obj.get("type") == "system" and subtype == "compact_boundary":
             compactions += 1
+            meta = obj.get("compact_metadata") or obj.get("compactMetadata") or {}
+            if isinstance(meta, dict):
+                pre = meta.get("pre_tokens", meta.get("preTokens"))
+                if isinstance(pre, (int, float)) and not isinstance(pre, bool):
+                    pre_tokens.append(int(pre))
+        elif isinstance(subtype, str) and "compact" in subtype.lower():
+            other_compact += 1
         if obj.get("type") == "result":
             result = obj
     summary: dict = {
         "stream_lines": lines,
         "bad_lines": bad_lines,
         "compaction_markers": compactions,
+        "other_compact_markers": other_compact,
+        "pre_tokens": pre_tokens,
         "result_seen": result is not None,
     }
     if result is None:
@@ -368,7 +491,7 @@ def preflight_notes(settings_path: Path | None = None) -> list[str]:
     path = settings_path or (Path.home() / ".claude" / "settings.json")
     notes = [
         "Record claude --version. The about-967K default is documented for current native 1M models and changed for Sonnet 5 in v2.1.323.",
-        "Record the five-hour and weekly percentages from Settings > Usage before and after the run, on an otherwise idle account. This harness cannot read that meter.",
+        "The five-hour and weekly percentages are not in the JSONL. They are readable from /usage (usage_report) and from a statusLine rate_limits logger. Settings > Usage is the cross-check. Use an otherwise idle account.",
         "Do not use --bare if the question is the subscription limit.",
     ]
     if not path.is_file():
@@ -411,7 +534,7 @@ def execute_arm(arm: dict, *, timeout_s: int, work_root: Path) -> dict:
             text=True,
             timeout=timeout_s,
             check=False,
-            env=os.environ.copy(),
+            env=child_environment(os.environ, arm),
         )
     except subprocess.TimeoutExpired:
         return {
@@ -441,12 +564,37 @@ def execute_arm(arm: dict, *, timeout_s: int, work_root: Path) -> dict:
     }
 
 
+_CLEARED_ENV = (
+    "DISABLE_AUTO_COMPACT",
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+)
+
+
+def child_environment(base: dict, arm: dict) -> dict:
+    """Drop inherited compaction controls, then apply the arm.
+
+    A shell export of CLAUDE_AUTOCOMPACT_PCT_OVERRIDE would otherwise survive
+    under --settings and change the trigger.
+    """
+    env = dict(base)
+    for key in _CLEARED_ENV:
+        env.pop(key, None)
+    for key, value in arm.get("settings_env", {}).items():
+        env[key] = str(value)
+    env["CLAUDE_CODE_ENABLE_TELEMETRY"] = env.get("CLAUDE_CODE_ENABLE_TELEMETRY", "0")
+    return env
+
+
 def _arm_for_display(arm: dict) -> dict:
     shown = {
         "task_id": arm["task_id"],
         "method": arm["method"],
         "percent": arm["percent"],
         "repeat": arm["repeat"],
+        "session_id": arm.get("session_id"),
+        "entrypoint_expected": arm.get("entrypoint_expected"),
         "window": arm["window"],
         "settings_env": arm["settings_env"],
         "argv_without_prompt": _redact_prompt(arm["argv"]),
@@ -480,8 +628,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Plan or run the compaction benchmark. Dry-run is the default.")
     parser.add_argument("--execute", action="store_true", help="Launch claude. This spends quota.")
     parser.add_argument("--task", action="append", help="Task id. Repeat to select more than one. Default: all.")
-    parser.add_argument("--percents", default="95,75,50,25,10")
-    parser.add_argument("--methods", default="window,pct", help="Comma-separated: window, pct")
+    parser.add_argument("--percents", default="default,25")
+    parser.add_argument(
+        "--methods",
+        default="window,pct",
+        help="Comma-separated: window, pct, default, compound, tui",
+    )
+    parser.add_argument(
+        "--include-smoke",
+        action="store_true",
+        help="Include the three short smoke tasks. They are excluded from the default grid.",
+    )
     parser.add_argument("--context-window", type=int, default=DEFAULT_CONTEXT_WINDOW)
     parser.add_argument("--model", default=None)
     parser.add_argument("--max-turns", type=int, default=20)
@@ -508,7 +665,13 @@ def main(argv: list[str] | None = None) -> int:
         if missing:
             print(f"Unknown task ids: {sorted(missing)}", file=sys.stderr)
             return 2
-    percents = [float(part) for part in args.percents.split(",") if part.strip()]
+    percents = []
+    for part in args.percents.split(","):
+        text = part.strip()
+        if not text or text in {"default", "auto"}:
+            percents.append(None)
+        else:
+            percents.append(float(text))
     methods = [part.strip() for part in args.methods.split(",") if part.strip()]
     arms = plan_arms(
         tasks=tasks,
@@ -520,6 +683,7 @@ def main(argv: list[str] | None = None) -> int:
         include_permission_prompts_flag=not args.no_permission_prompts_flag,
         persist_session=not args.no_session_persistence,
         repeats=args.repeats,
+        include_smoke=True if args.task else args.include_smoke,
     )
     claude_path = shutil.which("claude")
     payload: dict = {

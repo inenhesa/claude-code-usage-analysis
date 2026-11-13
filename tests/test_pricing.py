@@ -37,6 +37,50 @@ def test_unknown_model_is_not_priced():
     assert reason is not None
 
 
+def test_haiku_tier_is_per_request():
+    from cc_usage_study.pricing import estimate_call_usd
+
+    short, reason = estimate_call_usd(
+        "claude-haiku-5-5",
+        input_tokens=55_000,
+        output_tokens=0,
+        cache_read_tokens=0,
+        cache_write_5m_tokens=0,
+        cache_write_1h_tokens=0,
+        prompt_tokens=55_000,
+    )
+    assert reason is None
+    assert short == 55_000 * 0.10 / 1_000_000
+    long, reason = estimate_call_usd(
+        "claude-haiku-5-5",
+        input_tokens=55_000,
+        output_tokens=0,
+        cache_read_tokens=0,
+        cache_write_5m_tokens=0,
+        cache_write_1h_tokens=0,
+        prompt_tokens=150_000,
+    )
+    assert reason is None
+    assert long == 55_000 * 0.50 / 1_000_000
+
+
+def test_fast_mode_does_not_invent_cache_prices():
+    from cc_usage_study.pricing import estimate_call_usd
+
+    usd, reason = estimate_call_usd(
+        "claude-opus-5-5",
+        input_tokens=1_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+        cache_write_5m_tokens=0,
+        cache_write_1h_tokens=0,
+        prompt_tokens=2_000,
+        speed="fast",
+    )
+    assert usd is None
+    assert reason and "not verified" in reason
+
+
 def test_missing_ttl_split_is_not_guessed():
     usd, reason = estimate_call_usd(
         "claude-sonnet-5-5",
