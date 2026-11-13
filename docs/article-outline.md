@@ -2,9 +2,9 @@
 
 The essay is `docs/article-draft.md`. Numbers are outputs of the caching simulator in `outputs/summary.json`. They are not account measurements.
 
-## 1. Open on the tip, then the hypothesis
+## 1. Open on the default, then the sweet spot
 
-A popular tip says 25% slashes usage by 4x. The hypothesis: lowering the trigger should cut redundant history on long sessions, but caching already discounts repeats by 90-95%, so compacting too hard can erase the saving or raise the bill.
+Native 1M models wait until about 967k. The goal is the trigger everyday developers should set, about 150k to 200k, and a separate track for Desktop versus CLI versus T3 Code. Name the two levers before any chart. Say that stacking a window and a percentage, or using 25% on a 200k model, raises the bill.
 
 ## 2. Three meanings of "usage"
 

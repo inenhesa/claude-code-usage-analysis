@@ -19,6 +19,7 @@ from cc_usage_study.model import (
     saving,
     simulate,
 )
+from cc_usage_study.pricing import PRICES_USD_PER_MILLION
 from cc_usage_study.scenarios import all_scenarios, run_scenario
 
 
@@ -133,11 +134,74 @@ def zero_effect_control() -> dict:
     }
 
 
+def _require_weight_match(model: str, read_multiplier: float) -> float:
+    """Return the published base input price, in USD per million tokens.
+
+    The simulator prices a session in base-input equivalents: cache writes at
+    1.25x and 2x, output at 5x, reads at the scenario's multiplier. Multiplying
+    those units by the base input price is the list-price bill only when the
+    published row has those same ratios.
+    """
+    base, write_5m, write_1h, read, output = PRICES_USD_PER_MILLION[model]
+    ratios = {
+        "5-minute write": write_5m / base,
+        "1-hour write": write_1h / base,
+        "cache read": read / base,
+        "output": output / base,
+    }
+    expected = {
+        "5-minute write": 1.25,
+        "1-hour write": 2.0,
+        "cache read": read_multiplier,
+        "output": 5.0,
+    }
+    for name, actual in ratios.items():
+        if abs(actual - expected[name]) > 1e-9:
+            raise ValueError(f"{model} {name} ratio {actual} does not match the simulator ({expected[name]})")
+    return base
+
+
+def _usd(api_units: float, usd_per_million: float) -> float:
+    return round(api_units * usd_per_million / 1_000_000, 2)
+
+
+def list_price_anchor(by_name: dict, eoq: dict) -> dict:
+    """Published API list price for one modeled long session. Not the 5-hour meter."""
+    sonnet_rate = _require_weight_match("claude-sonnet-5", 0.1)
+    opus_rate = _require_weight_match("claude-opus-5-5", 0.05)
+    standard = eoq["simulated_best_10k_grid"]["0.1"]
+    opus_reads = eoq["simulated_best_10k_grid"]["0.05"]
+    sonnet_default = by_name["S1"]["api_hi"]
+    sonnet_250k = by_name["S1"]["api_lo"]
+    opus_default = by_name["S7-0.05"]["api_hi"]
+    return {
+        "label": "Published API list price applied to simulated base-input equivalents. Not a subscription meter.",
+        "sonnet_5": {
+            "model": "claude-sonnet-5",
+            "input_usd_per_million": sonnet_rate,
+            "cache_read_multiplier": 0.1,
+            "default_967k_usd": _usd(sonnet_default, sonnet_rate),
+            "trigger_250k_usd": _usd(sonnet_250k, sonnet_rate),
+            "sweet_spot_trigger": standard["best_trigger"],
+            "sweet_spot_usd": _usd(standard["best_api"], sonnet_rate),
+        },
+        "opus_5_5": {
+            "model": "claude-opus-5-5",
+            "input_usd_per_million": opus_rate,
+            "cache_read_multiplier": 0.05,
+            "default_967k_usd": _usd(opus_default, opus_rate),
+            "sweet_spot_trigger": opus_reads["best_trigger"],
+            "sweet_spot_usd": _usd(opus_reads["best_api"], opus_rate),
+        },
+    }
+
+
 def build_summary() -> dict:
     scenarios = [run_scenario(scenario) for scenario in all_scenarios()]
     by_name = {row["name"]: row for row in scenarios}
     s1_hi = simulate(Assumptions())
     s1_lo = simulate(replace(Assumptions(), pct=0.25))
+    eoq = eoq_grid()
     return {
         "disclaimer": (
             "Model output under stated assumptions. Not a measurement of any Claude account, "
@@ -153,7 +217,8 @@ def build_summary() -> dict:
         "s1": by_name["S1"],
         "s1_totals": {"hi": s1_hi.totals(), "lo": s1_lo.totals()},
         "zero_effect_control": zero_effect_control(),
-        "eoq": eoq_grid(),
+        "eoq": eoq,
+        "list_price": list_price_anchor(by_name, eoq),
     }
 
 
@@ -291,14 +356,15 @@ def write_figures(summary: dict, out: Path) -> None:
         "0.05": by_name["S7-0.05"]["api_hi"],
         "0.025": by_name["S7-0.025"]["api_hi"],
     }
-    fig, ax = axes((10.4, 5.8))
+    fig, ax = axes((10.6, 6.1))
     ax.axvspan(70_000, 100_000, color="#fde8e6", zorder=0)
+    ax.axvspan(150_000, 200_000, color="#e6f4f1", zorder=0)
     series = (
         ("0.1", "Standard 0.1x cache reads", navy),
         ("0.05", "Opus 5.5 / Sonnet 5.5 (0.05x reads)", clay),
         ("0.025", "Fable / Mythos (0.025x reads)", green),
     )
-    annotated = []
+    valleys = []
     for key, label, color in series:
         block = summary["eoq"]["simulated_best_10k_grid"][key]
         points = block["curve"]
@@ -307,22 +373,45 @@ def write_figures(summary: dict, out: Path) -> None:
         ax.plot(triggers, relative, color=color, linewidth=2.4, label=label, zorder=3)
         best_relative = block["best_api"] / baselines[key] * 100
         ax.scatter([block["best_trigger"]], [best_relative], color=color, s=48, zorder=4)
-        annotated.append((block["best_trigger"], best_relative, color))
-    ax.axvline(250_000, color="#98a2b3", linestyle="--", linewidth=1.1, zorder=1)
+        valleys.append((block["best_trigger"], best_relative, color))
+    ax.axhline(100, color="#98a2b3", linestyle="--", linewidth=1.0, zorder=1)
+    ax.axvline(250_000, color="#98a2b3", linestyle="--", linewidth=1.0, zorder=1)
     ax.text(
-        252_000,
-        96,
-        "Popular 25% of 1M",
-        rotation=90,
-        va="top",
-        ha="left",
+        392_000,
+        101.4,
+        "Default ~967k = 100% baseline",
+        ha="right",
+        va="bottom",
         fontsize=11,
         color="#667085",
     )
-    # Valleys sit at different heights, so each callout gets its own side.
-    callout_offsets = ((-8, 10), (10, 12), (12, -16))
-    alignments = (("right", "bottom"), ("left", "bottom"), ("left", "top"))
-    for (trigger, relative, color), offset, (ha, va) in zip(annotated, callout_offsets, alignments):
+    ax.text(
+        247_000,
+        103.2,
+        "25% of 1M",
+        ha="right",
+        va="bottom",
+        fontsize=11,
+        color="#667085",
+    )
+    ax.text(
+        175_000,
+        91,
+        "Sweet spot\n150k-200k",
+        ha="center",
+        va="center",
+        fontsize=12,
+        color="#0f6d6c",
+        zorder=4,
+    )
+    # 120k sits up and to the right, inside the bowl, off the falling blue slope.
+    # 160k and 220k sit above their dots, under the sweet-spot caption.
+    callouts = (
+        ((8, 12), "left", "bottom"),
+        ((0, 16), "center", "bottom"),
+        ((0, 14), "center", "bottom"),
+    )
+    for (trigger, relative, color), (offset, ha, va) in zip(valleys, callouts):
         cut = 100 - relative
         ax.annotate(
             f"{trigger / 1000:.0f}k (-{cut:.0f}%)",
@@ -336,16 +425,12 @@ def write_figures(summary: dict, out: Path) -> None:
             annotation_clip=False,
         )
     title(ax, "There is a sweet spot (and compacting too low turns the cost back up)")
-    ax.set_xlabel("Compaction trigger", labelpad=28)
-    ax.set_ylabel("Session cost, % of the ~967k default", labelpad=8)
-    ax.xaxis.set_major_formatter(tokens)
-    ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
-    ax.set_ylim(35, 105)
+    ax.set_xlabel("Compaction trigger", labelpad=32)
     ax.annotate(
-        "Danger zone: thrashing spikes cost",
+        "Too low (<100k): thrashing",
         xy=(85_000, 0),
         xycoords=("data", "axes fraction"),
-        xytext=(0, -32),
+        xytext=(0, -28),
         textcoords="offset points",
         ha="center",
         va="top",
@@ -353,6 +438,10 @@ def write_figures(summary: dict, out: Path) -> None:
         color="#b42318",
         annotation_clip=False,
     )
+    ax.set_ylabel("Session cost, % of the ~967k default", labelpad=8)
+    ax.xaxis.set_major_formatter(tokens)
+    ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
+    ax.set_ylim(33, 108)
     legend_side(ax)
     finish(fig, figures / "eoq_curve.png")
 
@@ -371,19 +460,35 @@ def write_figures(summary: dict, out: Path) -> None:
             return f"{rounded}% (savings wiped out)"
         return f"{rounded}%"
 
-    compare = [
+    def sweet_spot(read_key: str, baseline_name: str, caption: str) -> tuple[str, float, float]:
+        block = summary["eoq"]["simulated_best_10k_grid"][read_key]
+        baseline = by_name[baseline_name]["api_hi"]
+        change = (block["best_api"] - baseline) / baseline * 100
+        saving = baseline / block["best_api"]
+        trigger = int(block["best_trigger"] / 1000)
+        return caption.format(trigger=trigger), change, saving
+
+    sweet_rows = [
+        sweet_spot("0.1", "S1", "Sweet spot: {trigger}k on standard reads"),
+        sweet_spot("0.05", "S7-0.05", "Sweet spot: {trigger}k on Opus/Sonnet 5.5"),
+    ]
+    scenario_rows = [
         ("Long session, 250k vs ~967k", "S1"),
-        ("Extra-long session, 150 turns", "S1c"),
         ("Hour-long breaks, idle compact on", "S4b"),
-        ("Summary forgets the rules", "S3-15"),
+        ("Rules forgotten, 15 repairs", "S3-15"),
         ("Short bugfix", "S2"),
         ("Short bugfix forced to 100k", "S2b"),
         ("Both knobs: 62.5k vs 250k alone", "S8b"),
         ("25% on a 200k model (50k)", "S6"),
     ]
-    changes = [cost_change(by_name[name]) for _, name in compare]
-    labels = [change_label(change, by_name[name]["api_saving"]) for change, (_, name) in zip(changes, compare)]
-    fig, ax = axes((11.4, 6.3))
+    named_rows = [
+        (label, cost_change(by_name[name]), by_name[name]["api_saving"]) for label, name in scenario_rows
+    ]
+    rows = sweet_rows + named_rows
+    compare = [(label, None) for label, _, _ in rows]
+    changes = [change for _, change, _ in rows]
+    labels = [change_label(change, saving) for _, change, saving in rows]
+    fig, ax = axes((11.8, 7.2))
     positions = list(range(len(compare)))
     colors = [teal if change <= 0 else coral for change in changes]
     ax.barh(positions, changes, color=colors, height=0.62, zorder=3)

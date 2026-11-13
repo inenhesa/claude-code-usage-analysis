@@ -932,5 +932,25 @@
       }
     },
     "note": "The closed form treats compaction overhead K as constant. The grid is the same session as S1 with the trigger moved. For read multipliers 0.05 and 0.025, K is recomputed with that r. Optimum near 150k-200k is the 0.05x (Opus 5.5 / Sonnet 5.5 list price) region, not a reason to pick 25% of a 1M window."
+  },
+  "list_price": {
+    "label": "Published API list price applied to simulated base-input equivalents. Not a subscription meter.",
+    "sonnet_5": {
+      "model": "claude-sonnet-5",
+      "input_usd_per_million": 2.0,
+      "cache_read_multiplier": 0.1,
+      "default_967k_usd": 56.07,
+      "trigger_250k_usd": 27.25,
+      "sweet_spot_trigger": 120000,
+      "sweet_spot_usd": 23.9
+    },
+    "opus_5_5": {
+      "model": "claude-opus-5-5",
+      "input_usd_per_million": 4.0,
+      "cache_read_multiplier": 0.05,
+      "default_967k_usd": 68.16,
+      "sweet_spot_trigger": 160000,
+      "sweet_spot_usd": 38.64
+    }
   }
 }

@@ -1,10 +1,27 @@
 # Does Compacting Claude Code Earlier Actually Save Usage?
 
-A popular tip says cutting Claude Code's auto-compaction trigger down to 25% slashes usage by 4x. The tip is aimed at a real problem. It overstates the saving, and in a few common setups it points the wrong way.
+On a native 1M model, Claude Code waits until about 967k tokens before it auto-compacts. A long coding thread spends the day re-sending that history. This piece is about the trigger that cuts that cost for everyday work, and it keeps a second question in its own lane: what changes when you move between Claude Desktop, the official CLI, and T3 Code.
 
-Every turn re-sends the conversation. Native 1M-token models let that thread grow to about 967k tokens before auto-compaction. Lowering the trigger, into the 150k to 250k range, should cut redundant history on long sessions. Prompt caching already discounts a repeated prefix by 90 to 95 percent, and every compaction has a fixed cost. Compact too often, or on the wrong kind of task, and the saving disappears. Sometimes the bill goes up.
+Prompt caching already discounts a repeated prefix by 90 to 95 percent, and every compaction has a fixed cost. Earlier is cheaper on a long session. Too early, or on a short bugfix, and the bill goes up. The numbers below are the caching model. Slots marked `[MEASURED_LOCAL_DATA: ...]` stay empty until a real log is plugged in.
 
-This is a model you can rerun, plus an analyzer for your own logs. It is not a measurement of anyone's account. Slots marked `[MEASURED_LOCAL_DATA: ...]` stay empty until those logs are plugged in.
+## The sweet spot to copy
+
+For Opus 5.5 and Sonnet 5.5, published cache reads are 0.05 times input, and the cheapest trigger in this model is about 160k: 43% below leaving the default alone. At the standard 0.1x read price the valley is about 120k, 57% below the default. A practical band for most people on a 1M model is 150k to 200k. Set one knob, not both:
+
+```bash
+CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=20 claude
+claude --autocompact 180000
+```
+
+`20` is 20% of the current window. On a native 1M model that is 200k, the top of the band. `180000` sits inside it. A 250k window plus a 25% override is not 250k. In this model it is 62,500, it compacts 158 times instead of 10, and it costs 43% more than 250k alone.
+
+On a 200k model, including a native 1M model held there with `CLAUDE_CODE_DISABLE_1M_CONTEXT=1`, do not use 25%. That fires at 50k. In this model the session costs 227% more than leaving the trigger at 200k. Stay near the default, or set an absolute window at or above 120k.
+
+One priced example, from the published list price times the simulated units, not from the five-hour meter. A 60-turn Sonnet 5 session at $2 per million input tokens is $56.07 at the default and $23.90 at the 120k valley. The same shape on Opus 5.5, $4 per million and 0.05x reads, is $68.16 at the default and $38.64 at 160k.
+
+## Two levers, not one story
+
+Part 1 is the auto-compaction trigger: where earlier compaction cuts a long session, and which settings thrash. Part 2 is the client. Desktop chat, the Desktop Code tab, `claude` in the terminal, and T3 Code do not send the same background traffic, keep logs for the same length of time, or expose the same boundary control. Change both in one week and you cannot tell which one moved the meter. The client protocol is `benchmarks/client_comparison.md`.
 
 ## Three things hiding behind "usage"
 
@@ -86,9 +103,9 @@ The number that matters is cost per finished task, with the rule checked by a te
 
 Put rules that must survive in project-root `CLAUDE.md` and in executable tests before you make summaries more aggressive. Anthropic documents [what survives compaction](https://code.claude.com/docs/en/context-window). Root `CLAUDE.md` comes back. A rule that lived only in the middle of the chat often does not.
 
-## Desktop, the CLI, and T3 Code
+## Part 2: Desktop, the CLI, and T3 Code
 
-These are different clients, and a client switch is not a compaction result.
+A client switch is not a compaction result. Test it with the window held fixed.
 
 Claude Desktop chat, its Code tab, the official interactive `claude` CLI, and T3 Code are not four skins on an identical request. T3 Code drives Claude through the Agent SDK. Its [provider documentation](https://raw.githubusercontent.com/pingdotgg/t3code/main/docs/user/providers-claude.md) exposes an absolute "Auto-compact after" value and a separate idle-thread policy: When you return, Before the cache expires (beta), or Never.
 

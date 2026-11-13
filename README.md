@@ -1,57 +1,44 @@
-# Claude Code Compaction Study
+# Stop Leaving Claude Code on Default (~967k)
 
-*Does compacting context earlier actually save Claude usage, or can it quietly raise your bill?*
+*Finding the auto-compaction sweet spot for everyday developers, and separating it from Claude Desktop vs. CLI.*
 
-## The goal
+## Two levers, kept apart
 
-Every turn in Claude Code re-sends your conversation history, and native 1M-token models let a thread grow to ~967k tokens before auto-compacting. **Hypothesis:** lowering that auto-compaction trigger (say to 150k-250k tokens) should cut redundant context growth in long sessions, **but** prompt caching already discounts repeated history by 90-95% and compacting has a fixed overhead, so compacting too aggressively or in the wrong workflow could erase the savings or even cost *more*. This repo provides a caching simulator, a 10-second offline analyzer for your own `~/.claude/projects` logs, and a benchmark suite to test where early compaction helps and where it backfires.
+On native 1M models, Claude Code waits until **~967k tokens** before auto-compacting, so long threads drag huge histories turn after turn. This study isolates **two independent levers** that affect token burn and 5-hour/weekly limits:
 
-## Key takeaways
+- **Part 1. The auto-compaction sweet spot.** Where compacting earlier genuinely cuts real session cost (~41-57%) without hurting output quality, why ~967k is a poor default for long coding sessions, and which triggers backfire.
+- **Part 2. Claude Desktop vs. the Claude CLI (and T3 Code).** How the client changes background traffic, the default boundary, log retention, and rate-limit burn, independently of compaction.
 
-1. **It cuts real cost by ~2x on long sessions (not 4x, and never more).** Lowering the trigger from ~967k to 250k sends **67% fewer prompt tokens** (`3.1x`), which translates to **51% lower API-equivalent cost** (`2.1x`) at standard cache-read pricing, or **41% lower** on Opus 5.5 / Sonnet 5.5 (`0.05x` reads). Prompt caching softens the penalty of large context.
-2. **The sweet spot is ~150k-200k tokens, not a blind "25%".** At Opus 5.5 / Sonnet 5.5 read prices (`0.05x`), cost bottoms out around **160k tokens** (**43% cheaper** than default); at standard `0.1x` reads it bottoms out around **120k tokens** (**57% cheaper**). Below ~100k, summary rebuild costs spike your bill.
-3. **The hidden traps that actually INCREASE your bill:** Setting *both* a `250k` window *and* a `25%` override multiplies them to **62.5k tokens** (158 compactions instead of 10), making your session **+43% MORE expensive** than `250k` alone. Worse, applying `25%` on a 200k-context model triggers at **50k** and **more than triples your cost (+227%)**.
-4. **Short fixes save 0%, and losing context wipes out the rest.** Short debugging sessions never reach 250k (`0%` saved), forcing `100k` costs **+8% more**, and if a summary forgets key project rules and costs ~15 repair calls, net savings collapse to **3%**.
+Numbers are from the caching model. Your own logs and a live run are separate, and the analyzer below is how you collect them.
 
-*Numbers below come from our reproducible caching model; local transcript measurements and live benchmark runs are cleanly separated and ready for you to run on your own machine.*
+## Best-practice sweet spot
 
-## The 2x, on one session
+Set **one** knob. On a long session that is the whole win.
 
-The long-session result is 60 messages, 8 model calls each, 4,000 new tokens and 600 tokens of output per call, on a warm cache. The default grows to about 967k and compacts twice. At 250k it compacts 10 times. Same work.
+| Your setup | Do this |
+| --- | --- |
+| Native 1M models (Opus 5.5, Sonnet 5.5, Opus 4.7 and later, Sonnet 5 and later) | One knob in the **150k-200k** band: `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=20` or `claude --autocompact 180000`. About **41% to 57%** cheaper on a long session, near 2x, without thrashing. |
+| 200k models (`CLAUDE_CODE_DISABLE_1M_CONTEXT=1`, Sonnet 4.6, Opus 4.6) | **Do not use 25%.** It fires at 50k and costs **+227% more**. Stay near the default, or set a window at or above 120k. |
+| Both knobs at once | **Never.** A 250k window plus 25% becomes **62.5k** and costs **+43% more** than 250k alone. |
+| Short tasks and quick fixes | `/clear` between unrelated tasks. Auto-compaction saves **0%**. Forcing 100k adds **+8%**. |
+| Rules the agent must not forget | Put them in root `CLAUDE.md`. A summary re-injects that file, so you do not pay a pile of repair turns. |
 
-| | Default, about 967k | Early trigger, 250k |
-| --- | ---: | ---: |
-| Prompt tokens | 222,160,000 | 72,881,600 |
-| Estimated API cost | 28,033,460 | 13,626,420 |
-| Compactions | 2 | 10 |
+One dollar anchor, computed from the published list price times this model's units. It is **not** the subscription meter. In one 60-turn Sonnet 5 session at $2 per million input tokens, the ~967k default is **$56.07**, the 120k valley is **$23.90** (-57%), and 250k is **$27.25** (-51%). On Opus 5.5 at $4 per million, with 0.05x cache reads, **$68.16** falls to **$38.64** at the 160k valley (-43%).
 
-Take four long breaks and leave idle compaction on, which recent Claude Code does by default once you are past 200k, and that cost gap shrinks to 24%. The big session gets summarized while its cache is still warm.
+The session behind those dollars is 60 messages, 8 model calls each, 4,000 new tokens and 600 of output per call, on a warm cache. The default compacts twice. At 250k it compacts 10 times. Same work.
 
-Dividing 967 by 250 suggests a 3.9x drop. That shortcut ignores the summary calls, the context you keep, and the cache.
+| | Default, ~967k | 250k | Sweet spot |
+| --- | ---: | ---: | ---: |
+| Prompt tokens | 222,160,000 | 72,881,600 | lower still, at a higher compaction count |
+| Sonnet 5 list price | $56.07 | $27.25 | $23.90 at 120k |
+| Opus 5.5 list price | $68.16 | not this row's valley | $38.64 at 160k |
+| Compactions on the 250k comparison | 2 | 10 | a handful more than 10, still the cheap side |
 
-## The picture
+Four long breaks with idle compaction left on, which recent Claude Code does once you pass 200k, shrink the gap to about 24%. The big thread gets summarized while the cache is still warm. If the summary drops a project rule and the agent spends about 15 repair calls putting it back, the saving falls to about 3%. That is why the rule belongs in root `CLAUDE.md` before you lower the trigger.
 
-![When compacting earlier saves money, and when it costs more](outputs/figures/scenario_comparison.png)
+## Paste one line
 
-Teal bars are cheaper. Coral bars cost more. The long session is the win. The two traps on the right are the bill.
-
-![Session cost versus the compaction trigger, with a valley and a danger zone](outputs/figures/eoq_curve.png)
-
-Cost bottoms in a valley. 25% of a 1M window (250k) sits past it. Below 100k the curve turns up.
-
-![Prompt size through a long session at two triggers](outputs/figures/context_sawtooth.png)
-
-Same work, two triggers. Caching is why a 67% drop in prompt tokens becomes about a 51% drop in cost.
-
-## What the charts are saying
-
-A long thread keeps re-sending itself. Most of that repeated history is a cheap cache read, which is why cutting the prompt by two thirds only cuts the estimated bill in half. The saving shows up when the thread is actually long. It does not show up on a short bugfix, and it shrinks to almost nothing if the summary drops a rule and the agent has to rediscover it.
-
-The expensive mistakes are the ones that look thrifty. Two settings that each sound like "about 250k" multiply into a 62.5k trigger and compact all afternoon. On a 200k model, "25%" is 50k, and the summary overhead more than triples the estimated cost.
-
-## Copy one knob, not two
-
-Pick one. On a 1M model, either of these sits near the valley:
+On a 1M model, run one of these and leave the other unset:
 
 ```bash
 CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=20 claude
@@ -61,17 +48,40 @@ CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=20 claude
 claude --autocompact 180000
 ```
 
-Do not set both. A 250k window plus a 25% override is a 62.5k trigger.
+`20` is 20% of the window already in force. On a native 1M model that is 200k, the top of the band. `180000` sits in the middle of it. If a window is set and the percentage is also set, they multiply, and you have left the band. The first compaction's `preTokens` is the number that counts.
 
-Then:
+## The picture
 
-- Use `/clear` between unrelated tasks. That reset is free. Compaction is for a thread you still need.
-- Put unbreakable rules in root `CLAUDE.md`. A summary re-injects that file. It does not reliably keep a rule that lived only in the chat.
-- After a week, read `preTokens` on the compaction events. The label in the UI is not the boundary.
+![When compacting earlier saves money, and when it costs more](outputs/figures/scenario_comparison.png)
+
+Teal is cheaper. Coral costs more. The top two bars are the valleys. The long red bar is 25% on a 200k model.
+
+![Session cost versus the compaction trigger, with the 150k-200k band marked](outputs/figures/eoq_curve.png)
+
+100% is leaving the default alone. The teal band is where to set a 1M model. Below 100k the curve turns up.
+
+![Prompt size through a long session at two triggers](outputs/figures/context_sawtooth.png)
+
+Same 60-turn session. Caching is why a 67% drop in prompt tokens becomes about a 51% drop in cost. Most of a warm prompt is a cheap re-read, so shrinking the history does not shrink the bill by the same factor.
+
+The red bar is the one to show a teammate who set 25% on a 200k model. The teal band on the curve is the one to show everyone else. Dividing 967 by 250 suggests a 3.9x drop, and that shortcut skips the summary calls, the context you keep, and the cache.
+
+## Part 2. Desktop, the CLI, and T3 Code
+
+Switching apps is not a compaction result. Desktop chat does not even write the Claude Code transcript. The Code tab, the official CLI, and T3 Code do, and they do not keep those logs for the same length of time or fire the same quiet extra calls. Change the client and the trigger in the same week and you will credit the wrong one.
+
+| Surface | JSONL logs | What sets compaction | Silent traffic |
+| --- | --- | --- | --- |
+| Claude Desktop chat | No | The chat product's own context management | The meter sees it. These files do not. |
+| Desktop Code tab | Yes, kept at any age | Same settings as the CLI, but the Desktop launch environment wins | Prompt suggestions can be a background request |
+| Official `claude` CLI | Yes, deleted after 30 days by default | Env, then flag, then `/autocompact`, then settings | Titles and other helper calls |
+| T3 Code | Yes, under that app's config directory | "Auto-compact after" is a window. A percentage in user settings still stacks on top. | Titles and commit text may save no transcript. Suggestions default off. |
+
+Hold the window fixed, then compare. Cards C1 through C6 in `benchmarks/client_comparison.md` are that experiment: same task, same boundary, client as the only change. A five-hour difference at the same token totals is a client finding. A different `raw_max_tokens` from `/context` means you did not match the trigger.
 
 ## Check your own logs in 10 seconds
 
-Python 3.11+. The analyzer prints aggregates only. It never copies prompt text. With `--output` or `--summary` it also prints a one-screen scorecard.
+Python 3.11 or newer. The analyzer prints aggregates only. It never copies prompt text. `--output` and `--summary` also print a one-screen scorecard on stderr.
 
 ```bash
 python3 -m pip install -e ".[dev]"
@@ -79,32 +89,30 @@ python3 -m cc_usage_study.analyze ~/.claude/projects --split-date YYYY-MM-DD --s
 python3 -m cc_usage_study.simulate --out outputs
 ```
 
-Replace the date with the day you changed the setting. CLI logs older than 30 days may already be gone. Desktop and Cowork transcripts are kept. `python3 -m pytest -q` checks the model against these charts.
+Replace the date with the day you changed the setting. The scorecard shows sessions, main calls, compactions, the cache-read share, prompt tokens per call, and the before/after change. CLI logs older than 30 days may already be gone. Desktop and Cowork transcripts are kept.
 
-The scorecard on stderr is the shareable bit: sessions, main calls, compactions, how much of the prompt was a cache read, prompt tokens per call, and the before/after change when you pass a date. The JSON file is the full aggregate. Neither one contains your prompts.
+Read `preTokens` on the compaction events before you trust a label. If both knobs were set, expect a boundary near 62,500, not 250,000. The five-hour percentages live in Settings > Usage, not in the JSONL. `python3 -m pytest -q` checks the model against these charts. Company logs can still contain source code. The safe demo is `fixtures/synthetic/`.
 
-## What a real log can confirm
+## After the first week
 
-The charts above are the model. Your transcripts answer a different question: did *your* sessions actually hit the trigger?
+Treat the first week as a check, not a victory lap.
 
-- Prompt tokens per main call should fall if the lower trigger fired on long threads.
-- A short week of bugfixes can show no change at all. That matches the 0% bar.
-- `preTokens` tells you the real boundary. If you set both knobs, expect a number near 62,500, not 250,000.
-- Compactions going through the roof, with prompt tokens per call barely down, is the 50k trap.
-- The five-hour meter is not in the file. Copy the percentages from Settings > Usage for the same blocks. A token win that does not move the meter is still a finding.
-
-Company logs can contain source code even when the report does not. Run the analyzer only where that is allowed. The safe demo is `fixtures/synthetic/`. Reports from it are marked synthetic.
+- Prompt tokens per main call should drop if long threads were the bulk of the work. A week of tiny bugfixes can show no change, and that is the 0% bar, not a failed setting.
+- Compactions jumping into the hundreds, with the per-call size barely down, means the trigger is too low. That is the 50k case.
+- If tests start failing on rules the agent used to remember, move the trigger up or put the rule in root `CLAUDE.md`. A cheaper transcript and a broken task is a loss.
+- Copy the five-hour and weekly percentages for the same blocks, with nothing else using the account. A list-price win that does not move the meter is still worth knowing. The meter formula is not published.
+- If you also switched from Desktop to the CLI or to T3 Code, split those sessions by entrypoint before you credit the trigger. Part 2 is a different experiment.
 
 ## What's inside
 
 | | |
 | --- | --- |
-| `docs/article-draft.md` | The public essay: why ~2x, and where it backfires |
+| `docs/article-draft.md` | The essay: the sweet spot, the traps, and the client question |
 | `docs/examples.md` | The arithmetic, request by request |
 | `docs/reference.md` | Knobs, model windows, caching, idle compaction |
-| `outputs/` | Every chart and the number behind it |
-| `benchmarks/` | How to test a real task without fooling yourself |
-| `fixtures/synthetic/` | Fake transcripts for the analyzer. Not real usage. |
+| `outputs/` | Every chart, plus the list-price dollars |
+| `benchmarks/client_comparison.md` | Cards C1-C6 for Desktop vs CLI vs T3 |
+| `fixtures/synthetic/` | Fake transcripts. Reports from them are marked synthetic. |
 
 ## License
 
