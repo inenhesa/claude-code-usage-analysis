@@ -1,81 +1,77 @@
-# Claude Code compaction study
+# Claude Code Compaction Study
 
-Compacting earlier can make a long coding session cheaper. It does not, by itself, cut usage by 4x, and "another 200%" is not a real reduction.
+*Does compacting context earlier actually save Claude usage, or can it quietly raise your bill?*
 
-## At a glance
+## The goal
 
-- The LinkedIn claim was a personal observation: auto-compaction at 25% "cut usage by almost 4x." A later line said switching to T3 Code cut usage by "another 200%." A reduction cannot exceed 100%. This repo does not replace that with 2x or 3x.
-- On a simulated 60-turn session with physical prefix caching, the about-967k trigger costs about **2.1x** as much at API prices as 250k (28.0M vs 13.6M units) and sends about **3.1x** the raw prompt tokens (222.2M vs 72.9M).
-- The priced sweet spot is about **150k to 200k** tokens for current Opus and Sonnet read prices, not a blind 25% of a 1M window. At a standard 0.1x read the valley is nearer 120k.
-- Two traps: setting a 250k window **and** 25% fires at **62.5k** and can cost more than 25% alone, and a short fix or a burst of repair work can wipe the saving out.
-- Local transcripts and live Claude runs are **not in this repo yet**. Every chart is a model under named assumptions. The five-hour meter has no published formula.
+Every turn in Claude Code re-sends your conversation history, and native 1M-token models let a thread grow to ~967k tokens before auto-compacting. **Hypothesis:** lowering that auto-compaction trigger (say to 150k-250k tokens) should cut redundant context growth in long sessions, **but** prompt caching already discounts repeated history by 90-95% and compacting has a fixed overhead, so compacting too aggressively or in the wrong workflow could erase the savings or even cost *more*. This repo provides a caching simulator, a 10-second offline analyzer for your own `~/.claude/projects` logs, and a benchmark suite to test where early compaction helps and where it backfires.
 
-A user turn is one message you send. A model request is one API call inside that turn, including a tool batch. The baseline is 60 turns of 8 requests: 4,000 new tokens and 600 tokens of output each, with a warm cache. A warm request reads the previous prompt and writes only the new tail. It does not re-bill the whole history.
+## Key takeaways
 
-## What 2.1x means
+1. **It cuts real cost by ~2x on long sessions (not 4x, and never more).** Lowering the trigger from ~967k to 250k sends **67% fewer prompt tokens** (`3.1x`), which translates to **51% lower API-equivalent cost** (`2.1x`) at standard cache-read pricing, or **41% lower** on Opus 5.5 / Sonnet 5.5 (`0.05x` reads). Prompt caching softens the penalty of large context.
+2. **The sweet spot is ~150k-200k tokens, not a blind "25%".** At Opus 5.5 / Sonnet 5.5 read prices (`0.05x`), cost bottoms out around **160k tokens** (**43% cheaper** than default); at standard `0.1x` reads it bottoms out around **120k tokens** (**57% cheaper**). Below ~100k, summary rebuild costs spike your bill.
+3. **The hidden traps that actually INCREASE your bill:** Setting *both* a `250k` window *and* a `25%` override multiplies them to **62.5k tokens** (158 compactions instead of 10), making your session **+43% MORE expensive** than `250k` alone. Worse, applying `25%` on a 200k-context model triggers at **50k** and **more than triples your cost (+227%)**.
+4. **Short fixes save 0%, and losing context wipes out the rest.** Short debugging sessions never reach 250k (`0%` saved), forcing `100k` costs **+8% more**, and if a summary forgets key project rules and costs ~15 repair calls, net savings collapse to **3%**.
 
-Three different things get called "usage." This repo keeps them apart.
+*Numbers below come from our reproducible caching model; local transcript measurements and live benchmark runs are cleanly separated and ready for you to run on your own machine.*
 
-| Quantity | Baseline result | What it is |
-| --- | --- | --- |
-| Raw prompt tokens | 3.05x | How much input the requests carry, including cached input |
-| API-equivalent cost | 2.06x | Those buckets at published cache prices (reads at 0.1x) |
-| Five-hour and weekly meter | unknown | No published formula. Not estimated here. |
+## The 2x, on one session
 
-At the cheaper read prices on current Opus 5.5 and Sonnet 5.5 (0.05x), the same session's priced gap falls to 1.69x. The raw-prompt gap stays 3.05x. If reads were free, compacting earlier would not help.
+The long-session result is 60 messages, 8 model calls each, 4,000 new tokens and 600 tokens of output per call, on a warm cache. The default grows to about 967k and compacts twice. At 250k it compacts 10 times. Same work.
 
-The formula behind the valley is `T* ≈ R + sqrt(2 * K * (g + o) / r)`. R is what remains after a summary. Cheaper reads push the bottom to the right. Closed-form estimates: 126k at 0.1x, 159k at 0.05x, 205k at 0.025x. The grid in the chart bottoms at 120k, 160k, and 220k.
+| | Default, about 967k | Early trigger, 250k |
+| --- | ---: | ---: |
+| Prompt tokens | 222,160,000 | 72,881,600 |
+| Estimated API cost | 28,033,460 | 13,626,420 |
+| Compactions | 2 | 10 |
+
+Take four long breaks and leave idle compaction on, which recent Claude Code does by default once you are past 200k, and that cost gap shrinks to 24%. The big session gets summarized while its cache is still warm.
+
+Dividing 967 by 250 suggests a 3.9x drop. That shortcut ignores the summary calls, the context you keep, and the cache.
 
 ## The picture
 
-![Cost versus compaction trigger. Each curve bottoms at a dot.](outputs/figures/eoq_curve.png)
+![When compacting earlier saves money, and when it costs more](outputs/figures/scenario_comparison.png)
 
-The cheap trigger is the bottom of the curve. Dots mark about 120k, 160k, and 220k. 250k, which is 25% of 1M, sits past those bottoms.
+Teal bars are cheaper. Coral bars cost more. The long session is the win. The two traps on the right are the bill.
 
-![Eight sessions, comparing API cost of the higher trigger with the lower one.](outputs/figures/scenario_comparison.png)
+![Session cost versus the compaction trigger, with a valley and a danger zone](outputs/figures/eoq_curve.png)
 
-Above 1, the higher trigger costs more, so compacting earlier helps. Below 1, it costs more. The short bugfix and the 62.5k compound are the cases that look good in a token graph and lose on price.
+Cost bottoms in a valley. 25% of a 1M window (250k) sits past it. Below 100k the curve turns up.
 
-![Prompt size rising and then dropping each time the session compacts.](outputs/figures/context_sawtooth.png)
+![Prompt size through a long session at two triggers](outputs/figures/context_sawtooth.png)
 
-One long session. The 250k line is cut back ten times. The 967k line is cut back twice, and it carries a much larger history in between.
+Same work, two triggers. Caching is why a 67% drop in prompt tokens becomes about a 51% drop in cost.
 
-## Scenarios
+## What the charts are saying
 
-"Times" is the higher trigger divided by the lower one. Above 1, the higher trigger costs more.
+A long thread keeps re-sending itself. Most of that repeated history is a cheap cache read, which is why cutting the prompt by two thirds only cuts the estimated bill in half. The saving shows up when the thread is actually long. It does not show up on a short bugfix, and it shrinks to almost nothing if the summary drops a rule and the agent has to rediscover it.
 
-| What happened | API | Raw prompt | In one line |
-| --- | ---: | ---: | --- |
-| Long session, 250k vs about 967k | 2.06x | 3.05x | The baseline. Not 4x. |
-| Same session, T3's about-217k reading | 2.15x | 3.39x | A little earlier, a little cheaper. |
-| Short bugfix | 1.00x | 1.00x | Neither trigger fires. |
-| That bugfix forced to 100k | 0.93x | 1.35x | Fewer tokens, higher priced cost. |
-| 15 repair requests per compaction | 1.03x | 1.64x | Lost context eats the API gap. |
-| Long breaks, idle compaction on | 1.31x | 1.77x | The default idle path shrinks the gap. |
-| 250k window and 25% together (62.5k) | 1.43x | 6.21x | Raw tokens look spectacular. |
-| That 62.5k arm versus 250k alone | 0.70x | 2.04x | Compounding costs more at API prices. |
+The expensive mistakes are the ones that look thrifty. Two settings that each sound like "about 250k" multiply into a 62.5k trigger and compact all afternoon. On a 200k model, "25%" is 50k, and the summary overhead more than triples the estimated cost.
 
-Exact integers are in `outputs/summary.json`. Worked steps are in `docs/examples.md`.
+## Copy one knob, not two
 
-## One knob, not two
-
-Use one control. If both are set, 250,000 and 25% become 62,500.
+Pick one. On a 1M model, either of these sits near the valley:
 
 ```bash
-# 25% of the window this version already uses. This cannot delay compaction.
-CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=25 claude
-
-# Or an absolute window, after the percentage override is unset.
-claude --autocompact 250000
+CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=20 claude
 ```
 
-In T3 Code the control is an "Auto-compact after" number. A source comment says the UI reads that number as about 33,000 tokens short of the boundary. Trust `preTokens` on the compaction event, not the label.
+```bash
+claude --autocompact 180000
+```
 
-For a finished task, `/clear` drops the conversation. Compaction is for a thread you still need.
+Do not set both. A 250k window plus a 25% override is a 62.5k trigger.
 
-## Quick start
+Then:
 
-Python 3.11 or newer. The analyzer prints aggregates only. It does not copy prompt text.
+- Use `/clear` between unrelated tasks. That reset is free. Compaction is for a thread you still need.
+- Put unbreakable rules in root `CLAUDE.md`. A summary re-injects that file. It does not reliably keep a rule that lived only in the chat.
+- After a week, read `preTokens` on the compaction events. The label in the UI is not the boundary.
+
+## Check your own logs in 10 seconds
+
+Python 3.11+. The analyzer prints aggregates only. It never copies prompt text. With `--output` or `--summary` it also prints a one-screen scorecard.
 
 ```bash
 python3 -m pip install -e ".[dev]"
@@ -83,35 +79,32 @@ python3 -m cc_usage_study.analyze ~/.claude/projects --split-date YYYY-MM-DD --s
 python3 -m cc_usage_study.simulate --out outputs
 ```
 
-`python3 -m pytest -q` checks the model, the fake transcripts, and that these docs contain no em dashes.
+Replace the date with the day you changed the setting. CLI logs older than 30 days may already be gone. Desktop and Cowork transcripts are kept. `python3 -m pytest -q` checks the model against these charts.
 
-The middle command reads transcripts on your machine. It hashes project paths and does not copy prompts. Replace `YYYY-MM-DD` with the day the setting changed. If that day is more than 30 days ago, the CLI logs from before the change may already have been deleted. Desktop and Cowork transcripts are kept.
+The scorecard on stderr is the shareable bit: sessions, main calls, compactions, how much of the prompt was a cache read, prompt tokens per call, and the before/after change when you pass a date. The JSON file is the full aggregate. Neither one contains your prompts.
 
-Company logs can still contain source code even when the report does not. The safe demo is `fixtures/synthetic/`. Reports from it set `"synthetic": true`.
+## What a real log can confirm
 
-## Still open
+The charts above are the model. Your transcripts answer a different question: did *your* sessions actually hit the trigger?
 
-These are measurements, not things the simulator can invent.
+- Prompt tokens per main call should fall if the lower trigger fired on long threads.
+- A short week of bugfixes can show no change at all. That matches the 0% bar.
+- `preTokens` tells you the real boundary. If you set both knobs, expect a number near 62,500, not 250,000.
+- Compactions going through the roof, with prompt tokens per call barely down, is the 50k trap.
+- The five-hour meter is not in the file. Copy the percentages from Settings > Usage for the same blocks. A token win that does not move the meter is still a finding.
 
-- The exact keys that changed: percentage, window, or both. Both at once is the 62.5k trap.
-- `claude --version` and the model. The about-967k default moved for Sonnet 5 in v2.1.323.
-- Whether the before-week was inside the plan (1-hour cache) or on usage credits (5-minute cache).
-- Settings > Usage percentages for the same blocks. The JSONL files do not contain the meter.
-
-Details, links, and the precedence rules are in `docs/reference.md`.
+Company logs can contain source code even when the report does not. Run the analyzer only where that is allowed. The safe demo is `fixtures/synthetic/`. Reports from it are marked synthetic.
 
 ## What's inside
 
 | | |
 | --- | --- |
-| `docs/reference.md` | The two knobs, precedence, model windows, caching, and the idle-compaction rules |
-| `docs/examples.md` | The arithmetic behind the charts, request by request |
-| `docs/article-draft.md` | The nevolin.be draft, with empty slots for real logs |
-| `outputs/summary.json` | Every scenario, plus the EOQ grid |
-| `outputs/figures/` | The charts above, and the rest of the sweep |
-| `benchmarks/protocol.md` | How a live comparison should be run, and what it is allowed to claim |
-| `benchmarks/client_comparison.md` | Desktop chat, the CLI, and T3 Code, kept separate |
-| `fixtures/synthetic/` | Fake transcripts. Reports from them set `"synthetic": true` |
+| `docs/article-draft.md` | The public essay: why ~2x, and where it backfires |
+| `docs/examples.md` | The arithmetic, request by request |
+| `docs/reference.md` | Knobs, model windows, caching, idle compaction |
+| `outputs/` | Every chart and the number behind it |
+| `benchmarks/` | How to test a real task without fooling yourself |
+| `fixtures/synthetic/` | Fake transcripts for the analyzer. Not real usage. |
 
 ## License
 

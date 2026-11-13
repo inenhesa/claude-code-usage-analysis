@@ -105,6 +105,31 @@ def test_project_label_hashes_real_paths():
     assert again == label
 
 
+def test_summary_scorecard_stays_off_stdout_and_omits_the_canary(tmp_path: Path, capsys):
+    destination = tmp_path / "report.json"
+    code = main(
+        [str(FIXTURE), "--output", str(destination), "--summary", "--split-date", "2026-10-01"]
+    )
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert CANARY not in captured.err
+    assert "Claude Code log scorecard" in captured.err
+    assert "Main calls:" in captured.err
+    assert "Compactions:" in captured.err
+    assert "versus before" in captured.err
+    assert CANARY not in destination.read_text(encoding="utf-8")
+
+    capsys.readouterr()
+    code = main([str(FIXTURE), "--summary"])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out.lstrip().startswith("{")
+    assert CANARY not in captured.err
+    assert CANARY not in captured.out
+    assert "Claude Code log scorecard" in captured.err
+
+
 def test_cli_writes_a_report_without_the_canary(tmp_path: Path):
     destination = tmp_path / "report.json"
     code = main([str(FIXTURE), "--output", str(destination), "--split-date", "2026-10-01", "--sessions"])

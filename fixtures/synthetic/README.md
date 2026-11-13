@@ -13,7 +13,7 @@ python3 fixtures/synthetic/generate_fixtures.py
 | Project | What it is |
 | --- | --- |
 | `SYNTHETIC-project-alpha` | Small hand-written session for the original parser tests |
-| `SYNTHETIC-01-before-default-95pct` | Long and short sessions at the about-967k trigger. The directory name says 95pct because that was the wording in the posts. The trigger in the file is 967,000 |
+| `SYNTHETIC-01-before-default-95pct` | Long and short sessions at the about-967k trigger. The directory name says 95pct because that is the common shorthand. The trigger in the file is 967,000 |
 | `SYNTHETIC-02-after-25pct` | The same shapes at 250,000 |
 | `SYNTHETIC-03-compounding-62k` | Window 250,000 and percentage 25, plus one rework call per compaction |
 | `SYNTHETIC-04-subagent-heavy` | CLI copy (distinct session ids) and SDK copy (shared parent `sessionId`, `isSidechain`, `agentId`). Totals match. Subagent `toolUseResult.usage` is not a pattern here; the edge project covers that rollup |

@@ -17,7 +17,7 @@ They are independent, and setting both changes the meaning of each.
 
 The environment variable outranks the flag, and the flag outranks the setting. Settings files themselves rank: managed, then command-line `--settings`, then project local, then shared project, then user. A shell export is often overwritten by a settings `env` block. An overlay that wants a clean experiment has to set both variables itself.
 
-`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=100` does not delay compaction. A "95 percent" arm can be identical to the default. The docs do not publish a default percentage. "95 percent or so" in the original post is close to the documented about-967K trigger on a 1M context. It is not a setting named 95.
+`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=100` does not delay compaction. A "95 percent" arm can be identical to the default. The docs do not publish a default percentage. The phrase "95 percent or so" is close to the documented about-967K trigger on a 1M context. It is not a setting named 95.
 
 If both knobs are set, this model applies the percentage to the window and warns. A 250,000 window plus 25% fires at 62,500. Scenario S8: that arm sends 6.21 times fewer raw prompt tokens than about 967k, but only 1.43 times less API-equivalent cost, and it costs more than 25% alone (S8b, API ratio 0.70). Check `compactMetadata.preTokens` before trusting a label. Whether production subtracts anything else after the percentage is unverified.
 

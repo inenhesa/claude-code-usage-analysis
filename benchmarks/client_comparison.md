@@ -1,6 +1,6 @@
 # Desktop, CLI, and T3 Code
 
-The posts mix two changes: a lower compaction trigger, and a client switch described as "Claude App to Claude CLI (T3 Code)." This protocol separates them. No cell below is a measured token count from Ilja's account.
+A compaction change and a client switch are different experiments. This protocol keeps them apart. No cell below is a measured token count from a real account.
 
 ## What each client is
 
@@ -42,5 +42,5 @@ Same model, same effort, same repo snapshot, idle account, randomized client ord
 
 - Same `raw_max_tokens`, same token buckets, different meter: an entrypoint-metering observation. Not "this client used fewer tokens."
 - Different `raw_max_tokens`: you did not match the trigger. Do not call it a client effect.
-- The posts' client claim is C4 and C5, Desktop versus T3, at the same window. A drop in practice is more likely the trigger, or Desktop chat's own summarizer, than the client. The public entrypoint reports point the other way from "CLI is automatically cheaper."
+- C4 and C5 compare Desktop and T3 at the same window. A drop in practice is more likely the trigger, or Desktop chat's own summarizer, than the client. The public entrypoint reports point the other way from "CLI is automatically cheaper."
 - Retention: `cleanupPeriodDays` defaults to 30. Desktop and Cowork transcripts are kept. If the "before" CLI logs are gone, say so. Do not fill the gap with the simulation.

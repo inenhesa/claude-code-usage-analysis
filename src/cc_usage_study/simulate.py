@@ -246,70 +246,159 @@ def write_figures(summary: dict, out: Path) -> None:
     legend_side(ax)
     finish(fig, figures / "cumulative_api_equivalent.png")
 
-    fig, ax = axes((9.4, 5.2))
-    ax.plot(_context(hi), color=navy, linewidth=1.6, label="about 967k, 2 compactions")
-    ax.plot(_context(lo), color=clay, linewidth=1.6, label="250k, 10 compactions")
-    title(ax, "Context grows, then a summary cuts it back")
+    teal = "#0b6e6a"
+    coral = "#e23b2f"
+    token_drop = (1 - by_name["S1"]["prompt_lo"] / by_name["S1"]["prompt_hi"]) * 100
+    cost_drop = (1 - by_name["S1"]["api_lo"] / by_name["S1"]["api_hi"]) * 100
+    fig, ax = axes((10.2, 5.6))
+    ax.fill_between(range(len(_context(hi))), _context(hi), color=navy, alpha=0.13, linewidth=0)
+    ax.fill_between(range(len(_context(lo))), _context(lo), color=teal, alpha=0.16, linewidth=0)
+    ax.plot(
+        _context(hi),
+        color=navy,
+        linewidth=2.0,
+        label=f"Default ~967k: compacts {hi.compactions} times",
+    )
+    ax.plot(
+        _context(lo),
+        color=teal,
+        linewidth=2.0,
+        label=f"Early trigger 250k: compacts {lo.compactions} times",
+    )
+    ax.set_title("Why 3x fewer tokens only saves about 2x in cost", loc="left", pad=36)
+    ax.text(
+        0.0,
+        1.02,
+        (
+            "Prompt caching discounts re-reads by 90-95%. "
+            f"A {token_drop:.0f}% token drop becomes a {cost_drop:.0f}% cost drop."
+        ),
+        transform=ax.transAxes,
+        fontsize=12,
+        color="#344054",
+        clip_on=False,
+    )
     ax.set_xlabel("Model request", labelpad=8)
     ax.set_ylabel("Prompt size", labelpad=8)
     ax.yaxis.set_major_formatter(tokens)
-    ax.set_ylim(0, 1_150_000)
+    ax.set_ylim(0, 1_180_000)
     legend_side(ax)
     finish(fig, figures / "context_sawtooth.png")
 
     curve = summary["eoq"]["simulated_best_10k_grid"]["0.1"]["curve"]
-    fig, ax = axes((9.4, 5.4))
+    baselines = {
+        "0.1": by_name["S1"]["api_hi"],
+        "0.05": by_name["S7-0.05"]["api_hi"],
+        "0.025": by_name["S7-0.025"]["api_hi"],
+    }
+    fig, ax = axes((10.4, 5.8))
+    ax.axvspan(70_000, 100_000, color="#fde8e6", zorder=0)
     series = (
-        ("0.1", "reads at 0.1x", navy),
-        ("0.05", "reads at 0.05x", clay),
-        ("0.025", "reads at 0.025x", green),
+        ("0.1", "Standard 0.1x cache reads", navy),
+        ("0.05", "Opus 5.5 / Sonnet 5.5 (0.05x reads)", clay),
+        ("0.025", "Fable / Mythos (0.025x reads)", green),
     )
+    annotated = []
     for key, label, color in series:
         block = summary["eoq"]["simulated_best_10k_grid"][key]
         points = block["curve"]
-        ax.plot(
-            [p["trigger"] for p in points],
-            [p["api"] for p in points],
+        relative = [point["api"] / baselines[key] * 100 for point in points]
+        triggers = [point["trigger"] for point in points]
+        ax.plot(triggers, relative, color=color, linewidth=2.4, label=label, zorder=3)
+        best_relative = block["best_api"] / baselines[key] * 100
+        ax.scatter([block["best_trigger"]], [best_relative], color=color, s=48, zorder=4)
+        annotated.append((block["best_trigger"], best_relative, color))
+    ax.axvline(250_000, color="#98a2b3", linestyle="--", linewidth=1.1, zorder=1)
+    ax.text(
+        252_000,
+        96,
+        "Popular 25% of 1M",
+        rotation=90,
+        va="top",
+        ha="left",
+        fontsize=11,
+        color="#667085",
+    )
+    # Valleys sit at different heights, so each callout gets its own side.
+    callout_offsets = ((-8, 10), (10, 12), (12, -16))
+    alignments = (("right", "bottom"), ("left", "bottom"), ("left", "top"))
+    for (trigger, relative, color), offset, (ha, va) in zip(annotated, callout_offsets, alignments):
+        cut = 100 - relative
+        ax.annotate(
+            f"{trigger / 1000:.0f}k (-{cut:.0f}%)",
+            xy=(trigger, relative),
+            xytext=offset,
+            textcoords="offset points",
+            ha=ha,
+            va=va,
+            fontsize=12,
             color=color,
-            linewidth=2.2,
-            label=label,
+            annotation_clip=False,
         )
-        ax.scatter([block["best_trigger"]], [block["best_api"]], color=color, s=42, zorder=4)
-    title(ax, "The cheap trigger is a valley, not 25% of 1M")
-    ax.set_xlabel("Compaction trigger", labelpad=8)
-    ax.set_ylabel("API-equivalent cost of the session", labelpad=8)
+    title(ax, "There is a sweet spot (and compacting too low turns the cost back up)")
+    ax.set_xlabel("Compaction trigger", labelpad=28)
+    ax.set_ylabel("Session cost, % of the ~967k default", labelpad=8)
     ax.xaxis.set_major_formatter(tokens)
-    ax.yaxis.set_major_formatter(millions)
     ax.set_xticks([100_000, 150_000, 200_000, 250_000, 300_000, 400_000])
+    ax.set_ylim(35, 105)
+    ax.annotate(
+        "Danger zone: thrashing spikes cost",
+        xy=(85_000, 0),
+        xycoords=("data", "axes fraction"),
+        xytext=(0, -32),
+        textcoords="offset points",
+        ha="center",
+        va="top",
+        fontsize=11,
+        color="#b42318",
+        annotation_clip=False,
+    )
     legend_side(ax)
     finish(fig, figures / "eoq_curve.png")
 
+    def cost_change(row: dict) -> float:
+        return (row["api_lo"] - row["api_hi"]) / row["api_hi"] * 100
+
+    def change_label(change: float, saving: float) -> str:
+        rounded = int(round(change))
+        if rounded == 0:
+            return "0% (never compacts)"
+        if rounded > 0:
+            return f"+{rounded}% MORE expensive"
+        if saving >= 2:
+            return f"{rounded}% ({saving:.1f}x cheaper)"
+        if abs(rounded) <= 5:
+            return f"{rounded}% (savings wiped out)"
+        return f"{rounded}%"
+
     compare = [
-        ("Long session, 250k", "S1"),
-        ("T3 window, about 217k", "S1b"),
+        ("Long session, 250k vs ~967k", "S1"),
+        ("Extra-long session, 150 turns", "S1c"),
+        ("Hour-long breaks, idle compact on", "S4b"),
+        ("Summary forgets the rules", "S3-15"),
         ("Short bugfix", "S2"),
-        ("Bugfix forced to 100k", "S2b"),
-        ("15 repairs per compact", "S3-15"),
-        ("Idle compaction on", "S4b"),
-        ("Both knobs, 62.5k", "S8"),
-        ("62.5k versus 250k alone", "S8b"),
+        ("Short bugfix forced to 100k", "S2b"),
+        ("Both knobs: 62.5k vs 250k alone", "S8b"),
+        ("25% on a 200k model (50k)", "S6"),
     ]
-    fig, ax = axes((9.6, 5.8))
-    values = [by_name[name]["api_saving"] for _, name in compare]
-    colors = [navy if value >= 1 else clay for value in values]
+    changes = [cost_change(by_name[name]) for _, name in compare]
+    labels = [change_label(change, by_name[name]["api_saving"]) for change, (_, name) in zip(changes, compare)]
+    fig, ax = axes((11.4, 6.3))
     positions = list(range(len(compare)))
-    ax.barh(positions, values, color=colors, height=0.62)
-    ax.axvline(1.0, color=ink, linewidth=1)
+    colors = [teal if change <= 0 else coral for change in changes]
+    ax.barh(positions, changes, color=colors, height=0.62, zorder=3)
+    ax.axvline(0, color=ink, linewidth=1.1, zorder=2)
     ax.set_yticks(positions)
     ax.set_yticklabels([label for label, _ in compare])
     ax.invert_yaxis()
-    ax.set_xlim(0, 2.85)
-    ax.set_xlabel("API cost of the higher trigger, divided by the lower one", labelpad=8)
-    title(ax, "Earlier compaction helps only some sessions")
-    for index, value in enumerate(values):
-        ax.text(value + 0.06, index, f"{value:.2f}x", va="center", ha="left", fontsize=11, color=ink)
     ax.grid(axis="y", visible=False)
     ax.grid(axis="x", color="#eef0f2", linewidth=1)
+    label_x = max(changes) + 12
+    for index, (change, text, color) in enumerate(zip(changes, labels, colors)):
+        ax.text(label_x, index, text, va="center", ha="left", fontsize=12, color=color, clip_on=False)
+    ax.set_xlim(min(changes) - 28, label_x + 148)
+    ax.set_xlabel("Change in estimated API cost. Left of zero is cheaper. Right costs more.", labelpad=8)
+    title(ax, "When compacting earlier saves money, and when it backfires")
     finish(fig, figures / "scenario_comparison.png")
 
     amnesia = [row for row in summary["scenarios"] if row["name"].startswith("S3-")]

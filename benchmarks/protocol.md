@@ -18,7 +18,7 @@ Zero boundaries means the arm is noise. The three smoke tasks (`median_bug`, `sl
 | Tier | Baseline | Low arm | Why |
 | --- | --- | --- | --- |
 | S | window 400,000 | window 100,000 | Same 4:1 ratio as 25 percent of 1M, at less context |
-| F | `--autocompact auto` (about 967K on native 1M) | window 250,000, and a separate percentage-25 arm | Matches the posts |
+| F | `--autocompact auto` (about 967K on native 1M) | window 250,000, and a separate percentage-25 arm | The long-session comparison |
 | X | as F | window 250,000 and percentage 25 | The compounding trap (62,500 in the model) |
 
 Do not treat 95 percent as a distinct arm. The percentage override cannot raise the default, so 95 can be a no-op.

@@ -885,12 +885,52 @@ def report_contains_canary(report: dict, canary: str) -> bool:
     return canary in json.dumps(report)
 
 
+def format_scorecard(report: dict) -> str:
+    """Plain-language totals. Prompt text is never included."""
+    main_block = report.get("main") or {}
+    tokens = main_block.get("tokens") or {}
+    prompt = tokens.get("prompt_tokens") or 0
+    reads = tokens.get("cache_read_input_tokens") or 0
+    read_pct = (100.0 * reads / prompt) if prompt else 0.0
+    per_call = main_block.get("prompt_tokens_per_call")
+    per_call_text = f"{per_call:,.0f}" if per_call else "n/a"
+    lines = [
+        "Claude Code log scorecard",
+        f"Sessions: {report.get('sessions', 0)}",
+        f"Main calls: {main_block.get('calls', 0)}",
+        f"Compactions: {report.get('compactions', 0)}",
+        f"Cache reads: {read_pct:.0f}% of main prompt tokens",
+        f"Prompt tokens per main call: {per_call_text}",
+    ]
+    periods = report.get("periods")
+    if periods:
+        before = periods["before"].get("prompt_tokens_per_call")
+        after = periods["after"].get("prompt_tokens_per_call")
+        if before and after:
+            delta = (after - before) / before * 100.0
+            lines.append(
+                f"After {periods['split_date']}: prompt tokens per main call {delta:+.0f}% versus before"
+            )
+        else:
+            lines.append(
+                f"Split {periods['split_date']}: "
+                f"{periods['before']['calls']} calls before, {periods['after']['calls']} calls after"
+            )
+    lines.append("Aggregates only. Prompt text was not copied.")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Aggregate Claude Code JSONL transcripts. Prompt text is dropped."
     )
     parser.add_argument("paths", nargs="+", type=Path, help="JSONL files or directories")
     parser.add_argument("--output", "-o", type=Path, help="Write the JSON report here. Default: stdout")
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Print a plain-language scorecard to stderr. Also printed with --output.",
+    )
     parser.add_argument(
         "--split-date",
         help="YYYY-MM-DD. Calls before this local date are 'before'. The date itself is after.",
@@ -922,6 +962,8 @@ def main(argv: list[str] | None = None) -> int:
         args.output.write_text(text + "\n", encoding="utf-8")
     else:
         sys.stdout.write(text + "\n")
+    if args.output or args.summary:
+        print(format_scorecard(report), file=sys.stderr)
     if report.get("synthetic") is True:
         print(
             "Note: this report includes synthetic fixture data. Do not publish it as real usage.",

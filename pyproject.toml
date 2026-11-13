@@ -1,11 +1,15 @@
 [project]
 name = "cc-usage-study"
 version = "0.1.0"
-description = "When Claude Code auto-compaction saves tokens, and when it does not"
+description = "Does compacting Claude Code earlier actually save usage? Caching model, offline log analyzer, and benchmark suite."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [{name = "Ilja Nevolin"}]
+
+[project.urls]
+Homepage = "https://github.com/inevolin/claude-code-compaction-study"
+Repository = "https://github.com/inevolin/claude-code-compaction-study"
 dependencies = ["matplotlib>=3.8"]
 
 [project.optional-dependencies]

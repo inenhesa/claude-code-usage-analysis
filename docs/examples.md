@@ -1,6 +1,6 @@
 # Worked examples
 
-Every count below is either a closed-form illustration or an output of `cc_usage_study.model.simulate` under named assumptions. None of it is Ilja's measured usage. `k` means 1,000 tokens. A model request is one API call. A user turn can contain several model requests.
+Every count below is either a closed-form illustration or an output of `cc_usage_study.model.simulate` under named assumptions. None of it is a measured account. `k` means 1,000 tokens. A model request is one API call. A user turn can contain several model requests.
 
 The long-session numbers are scenario S1 in `outputs/summary.json`: 60 user turns, 8 requests each, 4,000 tokens of new input and 600 tokens of output per request, 20,000 system tokens, 8,000 project tokens, 15,000 tokens re-injected after compaction, a 3,000-token summary, 1-hour TTL, no long gaps, no rework. Cache reads are priced at 0.1x, 1-hour writes at 2x, compaction tails at 1.25x, output at 5x. A warm request reads the previous prompt and writes the previous output plus the new tail.
 
