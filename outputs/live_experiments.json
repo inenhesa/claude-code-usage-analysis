@@ -1,0 +1,1869 @@
+{
+  "schema": 1,
+  "date": "2026-11-13",
+  "pricing_snapshot": "2026-11-13",
+  "prices_usd_per_million": {
+    "model": "claude-opus-5-5",
+    "input": 4.0,
+    "cache_write_5m": 5.0,
+    "cache_write_1h": 8.0,
+    "cache_read": 0.2,
+    "output": 20.0
+  },
+  "versions": {
+    "claude_cli": "2.1.325",
+    "t3_code": "0.1.9",
+    "claude_desktop": "5.1231.2",
+    "claude_desktop_bundled_claude_code": "2.1.321"
+  },
+  "runs": {
+    "client_comparison": 7,
+    "compaction_arms": 5,
+    "clear_vs_warm_arms": 2,
+    "total": 14
+  },
+  "total_api_spend_usd": 18.5742,
+  "privacy": "numbers only: no prompt text, tool output, keys, or local paths",
+  "client_comparison": {
+    "setup": {
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "context_window": 1000000,
+      "claude_md": "identical 3-line CLAUDE.md per experiment (cold and bugfix arms each share one file)",
+      "claude_md_identical_cold": true,
+      "claude_md_identical_task": true,
+      "user_mcp_servers": 0,
+      "task": "noisy_bughunt (benchmarks/generators/gen_noisy_bughunt.py, seed 1337, scale S, P-doc): 3 planted bugs",
+      "cold_turn": "one-word reply, single API call, measures the startup prefix each client sends",
+      "five_hour_meter": "not measured: every run used a dedicated API key, not a subscription"
+    },
+    "sessions": {
+      "cold_cli_p": {
+        "session_id": "9fdd4b50-9d2b-43cb-8fb0-c8c21a1017aa",
+        "jsonl_sha256": "7295c71bd65de222cdddd43f6fb32c5b38caaf1306ae48f83d325c1774430e47",
+        "jsonl_bytes": 141177,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 1,
+        "tokens": {
+          "input": 2,
+          "cache_write_5m": 5353,
+          "cache_write_1h": 0,
+          "cache_read": 11495,
+          "output": 4
+        },
+        "assistant_usd": 0.029152,
+        "cost_state_usd": 0.029152,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.029152
+        },
+        "first_call_prefix_tokens": 16850,
+        "peak_context_tokens": 16850,
+        "end_context_tokens": 16850,
+        "dollars": {
+          "input_usd": 8e-06,
+          "cache_write_usd": 0.026765,
+          "cache_read_usd": 0.002299,
+          "output_usd": 8e-05
+        },
+        "hidden_usd": 0.0,
+        "client": "Claude CLI",
+        "client_version": "2.1.325",
+        "surface": "claude -p (headless)",
+        "startup": {
+          "system_prompt_chars": 7227,
+          "system_blocks": 3,
+          "inline_tools": 13,
+          "inline_tool_names": [
+            "Agent",
+            "Bash",
+            "Edit",
+            "ListAgents",
+            "Read",
+            "ReportFindings",
+            "ScheduleWakeup",
+            "Skill",
+            "ToolSearch",
+            "Workflow",
+            "DeferredToolPlaceholder",
+            "Write",
+            "advisor"
+          ],
+          "inline_tool_groups": {
+            "built-in": 13
+          },
+          "deferred_tools": 13,
+          "deferred_tool_groups": {
+            "built-in": 13
+          },
+          "skills": 13,
+          "tagged_block_chars": {
+            "runtime_info": 0,
+            "pull_request_linking": 0
+          }
+        },
+        "cost_usd": 0.029152,
+        "cost_source": "cost_state.totalCostUSD"
+      },
+      "cold_cli_tui": {
+        "session_id": "9412b239-0f60-4677-9065-3a4fceb0e7e6",
+        "jsonl_sha256": "72d806308b9913882c539d2851be708b1c59eda69bb6af497efe5f9f1989aee8",
+        "jsonl_bytes": 169043,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 1,
+        "tokens": {
+          "input": 2,
+          "cache_write_5m": 6602,
+          "cache_write_1h": 0,
+          "cache_read": 12924,
+          "output": 4
+        },
+        "assistant_usd": 0.035683,
+        "cost_state_usd": 0.035808,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.035683,
+          "claude-haiku-5-5": 0.000125
+        },
+        "first_call_prefix_tokens": 19528,
+        "peak_context_tokens": 19528,
+        "end_context_tokens": 19528,
+        "dollars": {
+          "input_usd": 8e-06,
+          "cache_write_usd": 0.03301,
+          "cache_read_usd": 0.002585,
+          "output_usd": 8e-05
+        },
+        "hidden_usd": 0.000125,
+        "client": "Claude CLI",
+        "client_version": "2.1.325",
+        "surface": "interactive TUI",
+        "startup": {
+          "system_prompt_chars": 7485,
+          "system_blocks": 3,
+          "inline_tools": 14,
+          "inline_tool_names": [
+            "Agent",
+            "AskUserQuestion",
+            "Bash",
+            "Edit",
+            "ListAgents",
+            "Read",
+            "ReportFindings",
+            "ScheduleWakeup",
+            "Skill",
+            "ToolSearch",
+            "Workflow",
+            "DeferredToolPlaceholder",
+            "Write",
+            "advisor"
+          ],
+          "inline_tool_groups": {
+            "built-in": 14
+          },
+          "deferred_tools": 15,
+          "deferred_tool_groups": {
+            "built-in": 15
+          },
+          "skills": 13,
+          "tagged_block_chars": {
+            "runtime_info": 0,
+            "pull_request_linking": 0
+          }
+        },
+        "cost_usd": 0.035808,
+        "cost_source": "cost_state.totalCostUSD"
+      },
+      "cold_t3": {
+        "session_id": "8153574a-77e8-49a7-9753-d8e734c5ad10",
+        "jsonl_sha256": "12800bc7ee9c0d87f39d249e085eaa7911b340a7cd9cd8e27473ff52076359a1",
+        "jsonl_bytes": 188480,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "t3-code"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 1,
+        "tokens": {
+          "input": 2,
+          "cache_write_5m": 9265,
+          "cache_write_1h": 0,
+          "cache_read": 13575,
+          "output": 4
+        },
+        "assistant_usd": 0.049128,
+        "cost_state_usd": 0.049128,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.049128
+        },
+        "first_call_prefix_tokens": 22842,
+        "peak_context_tokens": 22842,
+        "end_context_tokens": 22842,
+        "dollars": {
+          "input_usd": 8e-06,
+          "cache_write_usd": 0.046325,
+          "cache_read_usd": 0.002715,
+          "output_usd": 8e-05
+        },
+        "hidden_usd": 0.0,
+        "client": "T3 Code",
+        "client_version": "0.1.9",
+        "surface": "Agent SDK wrapping Claude Code 2.1.325",
+        "startup": {
+          "system_prompt_chars": 12857,
+          "system_blocks": 3,
+          "inline_tools": 15,
+          "inline_tool_names": [
+            "Agent",
+            "AskUserQuestion",
+            "Bash",
+            "Edit",
+            "ListAgents",
+            "Read",
+            "ReportFindings",
+            "ScheduleWakeup",
+            "Skill",
+            "ToolSearch",
+            "Workflow",
+            "Write",
+            "DeferredToolPlaceholder",
+            "mcp__t3-code__request_secret",
+            "advisor"
+          ],
+          "inline_tool_groups": {
+            "built-in": 14,
+            "t3-code": 1
+          },
+          "deferred_tools": 82,
+          "deferred_tool_groups": {
+            "built-in": 15,
+            "t3-code": 67
+          },
+          "skills": 13,
+          "tagged_block_chars": {
+            "runtime_info": 412,
+            "pull_request_linking": 940
+          }
+        },
+        "cost_usd": 0.049128,
+        "cost_source": "cost_state.totalCostUSD"
+      },
+      "cold_desktop": {
+        "session_id": "f6447251-c11c-439c-be13-d46dcf42ee4b",
+        "jsonl_sha256": "b66409403411bb80c9c58fbc2b90a339e601b563c9d16ca3d8daa4d2d594e687",
+        "jsonl_bytes": 325699,
+        "claude_code_version": [
+          "2.1.321"
+        ],
+        "entrypoint": [
+          "claude-desktop-3p"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 1,
+        "tokens": {
+          "input": 2,
+          "cache_write_5m": 14779,
+          "cache_write_1h": 0,
+          "cache_read": 24968,
+          "output": 4
+        },
+        "assistant_usd": 0.078977,
+        "cost_state_usd": null,
+        "cost_state_by_model_usd": null,
+        "first_call_prefix_tokens": 39749,
+        "peak_context_tokens": 39749,
+        "end_context_tokens": 39749,
+        "dollars": {
+          "input_usd": 8e-06,
+          "cache_write_usd": 0.073895,
+          "cache_read_usd": 0.004994,
+          "output_usd": 8e-05
+        },
+        "client": "Claude Desktop",
+        "client_version": "5.1231.2",
+        "surface": "Code tab, bundled Claude Code 2.1.321",
+        "startup": {
+          "system_prompt_chars": 25865,
+          "system_blocks": 3,
+          "inline_tools": 35,
+          "inline_tool_names": [
+            "Agent",
+            "AskUserQuestion",
+            "Bash",
+            "Edit",
+            "ListAgents",
+            "Monitor",
+            "Read",
+            "ReportFindings",
+            "ScheduleWakeup",
+            "SendUserFile",
+            "Skill",
+            "ToolSearch",
+            "Workflow",
+            "Write",
+            "mcp__ccd_session__dismiss_task",
+            "mcp__ccd_session__hand_off_to_session",
+            "mcp__ccd_session__mark_chapter",
+            "mcp__ccd_session__read_widget_context",
+            "mcp__ccd_turn__update_plan",
+            "mcp__ccd_turn__wrap_up",
+            "mcp__Claude_Browser__preview_click",
+            "mcp__Claude_Browser__preview_console_logs",
+            "mcp__Claude_Browser__preview_eval",
+            "mcp__Claude_Browser__preview_fill",
+            "mcp__Claude_Browser__preview_inspect",
+            "mcp__Claude_Browser__preview_list",
+            "mcp__Claude_Browser__preview_logs",
+            "mcp__Claude_Browser__preview_network",
+            "mcp__Claude_Browser__preview_resize",
+            "mcp__Claude_Browser__preview_screenshot",
+            "mcp__Claude_Browser__preview_snapshot",
+            "mcp__Claude_Browser__preview_start",
+            "mcp__Claude_Browser__preview_stop",
+            "DeferredToolPlaceholder",
+            "mcp__terminal__read_terminal"
+          ],
+          "inline_tool_groups": {
+            "built-in": 15,
+            "ccd_session": 4,
+            "ccd_turn": 2,
+            "Claude_Browser": 13,
+            "terminal": 1
+          },
+          "deferred_tools": 82,
+          "deferred_tool_groups": {
+            "built-in": 13,
+            "ccd_directory": 2,
+            "ccd_host": 7,
+            "ccd_pr": 5,
+            "ccd_session": 2,
+            "ccd_session_mgmt": 20,
+            "ccd_settings": 2,
+            "ccd_sidebar": 13,
+            "ccd_view": 4,
+            "ccd_window": 4,
+            "scheduled-tasks": 6,
+            "terminal": 4
+          },
+          "skills": 22,
+          "tagged_block_chars": {
+            "runtime_info": 0,
+            "pull_request_linking": 0
+          }
+        },
+        "cost_usd": 0.078977,
+        "cost_source": "deduped assistant usage at Opus 5.5 list price (Desktop writes no cost_state)"
+      },
+      "task_cli": {
+        "session_id": "fcc50be1-11ab-43eb-b253-aeccb1a926d4",
+        "jsonl_sha256": "a6b9a4848524c93cde05669fda37c2ef21248d89a61e26a0ceb772328d8cfd1e",
+        "jsonl_bytes": 236857,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 6,
+        "tokens": {
+          "input": 12,
+          "cache_write_5m": 9905,
+          "cache_write_1h": 0,
+          "cache_read": 129672,
+          "output": 1949
+        },
+        "assistant_usd": 0.114487,
+        "cost_state_usd": 0.124747,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.124423,
+          "claude-haiku-5-5": 0.000324
+        },
+        "first_call_prefix_tokens": 21291,
+        "peak_context_tokens": 24787,
+        "end_context_tokens": 24787,
+        "dollars": {
+          "input_usd": 4.8e-05,
+          "cache_write_usd": 0.049525,
+          "cache_read_usd": 0.025934,
+          "output_usd": 0.03898
+        },
+        "hidden_usd": 0.01026,
+        "client": "Claude CLI",
+        "client_version": "2.1.325",
+        "surface": "interactive TUI",
+        "verification": {
+          "visible_and_hidden_tests": {
+            "exit_code": 0,
+            "passed": 4,
+            "failed": 0
+          },
+          "all_tests_passed": true,
+          "hidden_bug_tests_passed": 3,
+          "bugs_fixed": 3,
+          "files_changed": [
+            "relayd/cache.py",
+            "relayd/codec.py",
+            "relayd/retry.py"
+          ],
+          "metrics_py_unmodified": true
+        },
+        "cost_usd": 0.124747,
+        "cost_source": "cost_state.totalCostUSD"
+      },
+      "task_t3": {
+        "session_id": "d6cb5419-2c6a-4c15-a6e4-beb0218790e4",
+        "jsonl_sha256": "7600573fe32d889a661308604bbcf0e73aefbaf2d2452ab1d0cfe300c7f926c8",
+        "jsonl_bytes": 234662,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "t3-code"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 6,
+        "tokens": {
+          "input": 12,
+          "cache_write_5m": 13536,
+          "cache_write_1h": 0,
+          "cache_read": 138735,
+          "output": 2034
+        },
+        "assistant_usd": 0.136155,
+        "cost_state_usd": 0.136155,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.136155
+        },
+        "first_call_prefix_tokens": 22958,
+        "peak_context_tokens": 27113,
+        "end_context_tokens": 27113,
+        "dollars": {
+          "input_usd": 4.8e-05,
+          "cache_write_usd": 0.06768,
+          "cache_read_usd": 0.027747,
+          "output_usd": 0.04068
+        },
+        "hidden_usd": 0.0,
+        "client": "T3 Code",
+        "client_version": "0.1.9",
+        "surface": "Agent SDK wrapping Claude Code 2.1.325",
+        "verification": {
+          "visible_and_hidden_tests": {
+            "exit_code": 0,
+            "passed": 4,
+            "failed": 0
+          },
+          "all_tests_passed": true,
+          "hidden_bug_tests_passed": 3,
+          "bugs_fixed": 3,
+          "files_changed": [
+            "relayd/cache.py",
+            "relayd/codec.py",
+            "relayd/retry.py"
+          ],
+          "metrics_py_unmodified": true
+        },
+        "cost_usd": 0.136155,
+        "cost_source": "cost_state.totalCostUSD"
+      },
+      "task_desktop": {
+        "session_id": "514fa8b5-e959-4b4a-a8c8-4816b66b4ca2",
+        "jsonl_sha256": "0a081f9d916e607c89d4304687e80ba0f99e369b13b3c0ee5313fe1903fba825",
+        "jsonl_bytes": 380144,
+        "claude_code_version": [
+          "2.1.321"
+        ],
+        "entrypoint": [
+          "claude-desktop-3p"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 8,
+        "tokens": {
+          "input": 16,
+          "cache_write_5m": 18384,
+          "cache_write_1h": 0,
+          "cache_read": 317669,
+          "output": 2509
+        },
+        "assistant_usd": 0.205698,
+        "cost_state_usd": null,
+        "cost_state_by_model_usd": null,
+        "first_call_prefix_tokens": 40046,
+        "peak_context_tokens": 43354,
+        "end_context_tokens": 43354,
+        "dollars": {
+          "input_usd": 6.4e-05,
+          "cache_write_usd": 0.09192,
+          "cache_read_usd": 0.063534,
+          "output_usd": 0.05018
+        },
+        "client": "Claude Desktop",
+        "client_version": "5.1231.2",
+        "surface": "Code tab, bundled Claude Code 2.1.321",
+        "verification": {
+          "visible_and_hidden_tests": {
+            "exit_code": 0,
+            "passed": 4,
+            "failed": 0
+          },
+          "all_tests_passed": true,
+          "hidden_bug_tests_passed": 3,
+          "bugs_fixed": 3,
+          "files_changed": [
+            "relayd/cache.py",
+            "relayd/codec.py",
+            "relayd/retry.py"
+          ],
+          "metrics_py_unmodified": true
+        },
+        "cost_usd": 0.205698,
+        "cost_source": "deduped assistant usage at Opus 5.5 list price (Desktop writes no cost_state)"
+      }
+    },
+    "comparisons": {
+      "cold_prefix_vs_cli_tui": {
+        "cold_cli_p": 0.8629,
+        "cold_t3": 1.1697,
+        "cold_desktop": 2.0355
+      },
+      "cold_prefix_desktop_vs_cli_p": 2.359,
+      "task_cost_vs_cli_main": {
+        "task_t3": 1.1893,
+        "task_desktop": 1.7967
+      },
+      "task_cost_vs_cli_total": {
+        "task_t3": 1.0914,
+        "task_desktop": 1.6489
+      },
+      "t3_extra_system_prompt_chars_vs_cli_tui": 5372
+    },
+    "notes": [
+      "CLI task_cli ran in the interactive TUI. Its cost_state ($0.1247) exceeds its deduped assistant rows ($0.1145): the TUI fires background calls (Haiku title plus an Opus side request) that write no assistant row.",
+      "T3 Code cost_state equals its assistant rows. Its separate title-generation sessions write no transcript.",
+      "Claude Desktop writes no cost_state row. Its cost is computed from deduped assistant usage and is a floor."
+    ]
+  },
+  "compaction": {
+    "setup": {
+      "suite": "LedgerKit v3.2 migration, P-doc variant, 4 phases joined with --resume",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "prompt_cache_ttl": "5m",
+      "phases": [
+        "migrate m00-m07, read architecture docs, report CHECK_ANOMALY rows in batches 1a/1b",
+        "migrate m08-m15, read runbooks, report CHECK_ANOMALY rows in batches 2a/2b",
+        "migrate m16-m23, re-check m00-m15, report CHECK_ANOMALY rows in batches 3a/3b",
+        "read golden fixtures, write RECONCILIATION.md, confirm tests"
+      ]
+    },
+    "threshold_formula": {
+      "source": "Claude Code v2.1.325 binary, functions tle and WX",
+      "effective_window": "window - min(maxOutputTokens, 20000)",
+      "threshold_no_override": "effective_window - 13000 = window - 33000",
+      "threshold_with_pct_override": "min(floor(effective_window * pct / 100), effective_window - 13000)",
+      "examples": {
+        "1M": 967000,
+        "180k": 147000,
+        "140k": 107000,
+        "100k": 67000,
+        "250k_with_25": 57500,
+        "1M_with_18": 176400
+      },
+      "note": "preTokens is logged by a different counter from the trigger check, which can add pending tokens (e + h >= threshold). Fires can log a few thousand tokens under the line or overshoot it after a large tool batch."
+    },
+    "arms": {
+      "default_1m": {
+        "session_id": "34eeb454-c687-493b-849b-a08299ebd9a9",
+        "jsonl_sha256": "bc736d9db422429d3e6a7dfd376b40b9f7776b83a174cb963778a45faddfa4c2",
+        "jsonl_bytes": 2695186,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 33,
+        "tokens": {
+          "input": 66,
+          "cache_write_5m": 258751,
+          "cache_write_1h": 0,
+          "cache_read": 5830162,
+          "output": 35473
+        },
+        "assistant_usd": 3.169511,
+        "cost_state_usd": 3.169511,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 3.169511
+        },
+        "first_call_prefix_tokens": 17380,
+        "peak_context_tokens": 270132,
+        "end_context_tokens": 270132,
+        "dollars": {
+          "input_usd": 0.000264,
+          "cache_write_usd": 1.293755,
+          "cache_read_usd": 1.166032,
+          "output_usd": 0.70946
+        },
+        "hidden_usd": 0.0,
+        "label": "Default 1M",
+        "flags": "--autocompact auto (1M window)",
+        "window": 1000000,
+        "pct_override": null,
+        "predicted_threshold": 967000,
+        "compactions": 0,
+        "compact_boundaries": [],
+        "context_per_call": [
+          17380,
+          87231,
+          91188,
+          97139,
+          101874,
+          104833,
+          108868,
+          110343,
+          110914,
+          111403,
+          111628,
+          112911,
+          189262,
+          193916,
+          196571,
+          199501,
+          203765,
+          204794,
+          205018,
+          206204,
+          235721,
+          239045,
+          241623,
+          244533,
+          248798,
+          259513,
+          260875,
+          261655,
+          262983,
+          264127,
+          265899,
+          269332,
+          270132
+        ],
+        "phases": [
+          {
+            "phase": 1,
+            "cost_state_usd": 0.891049,
+            "assistant_usd": 0.891049,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 2,
+            "cost_state_usd": 0.93216,
+            "assistant_usd": 0.93216,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 3,
+            "cost_state_usd": 0.921099,
+            "assistant_usd": 0.921099,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 4,
+            "cost_state_usd": 0.425202,
+            "assistant_usd": 0.425202,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 0
+          }
+        ],
+        "per_compaction_hidden_usd_range": null,
+        "hidden_share_of_total": 0.0,
+        "check_anomalies_planted": 12,
+        "check_anomalies_found_phases_1_3": 12,
+        "reconciliation_md_lists_anomalies": 12,
+        "visible_tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "visible_tests_passed": true,
+        "checker": {
+          "functional_failures": 0,
+          "violations": {},
+          "inv02_modules_delegating_to_clock_now": 0,
+          "inv02_modules_calling_datetime_now_directly": 0,
+          "semantic_violations": 0
+        },
+        "cost_vs_default": 0.0
+      },
+      "window_180k": {
+        "session_id": "8e83452e-a45b-42d1-b2f1-fe2d1729e228",
+        "jsonl_sha256": "99c249023ae1da08a33287aa449ecdb597592d956c218d17f495b5ed7a291a61",
+        "jsonl_bytes": 3131050,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 37,
+        "tokens": {
+          "input": 74,
+          "cache_write_5m": 309767,
+          "cache_write_1h": 0,
+          "cache_read": 2868327,
+          "output": 33818
+        },
+        "assistant_usd": 2.799156,
+        "cost_state_usd": 3.173884,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 3.173884
+        },
+        "first_call_prefix_tokens": 17352,
+        "peak_context_tokens": 154824,
+        "end_context_tokens": 46216,
+        "dollars": {
+          "input_usd": 0.000296,
+          "cache_write_usd": 1.548835,
+          "cache_read_usd": 0.573665,
+          "output_usd": 0.67636
+        },
+        "hidden_usd": 0.374727,
+        "label": "180k window",
+        "flags": "--autocompact 180k",
+        "window": 180000,
+        "pct_override": null,
+        "predicted_threshold": 147000,
+        "compactions": 2,
+        "compact_boundaries": [
+          {
+            "trigger": "auto",
+            "preTokens": 170089,
+            "postTokens": 27368,
+            "durationMs": 26502,
+            "after_call_index": 17,
+            "preTokens_minus_threshold": 23089
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 148193,
+            "postTokens": 12907,
+            "durationMs": 18314,
+            "after_call_index": 29,
+            "preTokens_minus_threshold": 1193
+          }
+        ],
+        "context_per_call": [
+          17352,
+          58569,
+          87276,
+          88433,
+          89651,
+          90813,
+          92540,
+          94432,
+          96180,
+          98149,
+          100309,
+          102221,
+          104105,
+          106238,
+          106635,
+          107951,
+          154824,
+          66217,
+          72913,
+          76263,
+          83674,
+          84430,
+          85620,
+          115137,
+          121520,
+          124766,
+          132003,
+          144970,
+          146216,
+          37486,
+          37953,
+          39592,
+          40455,
+          41121,
+          42297,
+          43641,
+          46216
+        ],
+        "phases": [
+          {
+            "phase": 1,
+            "cost_state_usd": 0.915794,
+            "assistant_usd": 0.915794,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 2,
+            "cost_state_usd": 1.1798,
+            "assistant_usd": 0.89206,
+            "hidden_usd": 0.287741,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.287741,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 3,
+            "cost_state_usd": 0.661552,
+            "assistant_usd": 0.661552,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 4,
+            "cost_state_usd": 0.416737,
+            "assistant_usd": 0.329751,
+            "hidden_usd": 0.086987,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.086987,
+            "check_anomalies_reported": 0
+          }
+        ],
+        "per_compaction_hidden_usd_range": [
+          0.086987,
+          0.287741
+        ],
+        "hidden_share_of_total": 0.1181,
+        "check_anomalies_planted": 12,
+        "check_anomalies_found_phases_1_3": 12,
+        "reconciliation_md_lists_anomalies": 12,
+        "visible_tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "visible_tests_passed": true,
+        "checker": {
+          "functional_failures": 0,
+          "violations": {},
+          "inv02_modules_delegating_to_clock_now": 4,
+          "inv02_modules_calling_datetime_now_directly": 0,
+          "semantic_violations": 0
+        },
+        "cost_vs_default": 0.0014
+      },
+      "window_140k": {
+        "session_id": "c339e387-7b83-47d9-9f5a-587a03f8f9ba",
+        "jsonl_sha256": "05cac3b2d677ce2fb0e36151947eac7a3763acaf6ec1c4ab6ccdfec252f5d96f",
+        "jsonl_bytes": 4058168,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 45,
+        "tokens": {
+          "input": 90,
+          "cache_write_5m": 366598,
+          "cache_write_1h": 0,
+          "cache_read": 3165654,
+          "output": 37826
+        },
+        "assistant_usd": 3.223001,
+        "cost_state_usd": 3.744366,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 3.744366
+        },
+        "first_call_prefix_tokens": 17349,
+        "peak_context_tokens": 106240,
+        "end_context_tokens": 40775,
+        "dollars": {
+          "input_usd": 0.00036,
+          "cache_write_usd": 1.83299,
+          "cache_read_usd": 0.633131,
+          "output_usd": 0.75652
+        },
+        "hidden_usd": 0.521365,
+        "label": "140k window",
+        "flags": "--autocompact 140k",
+        "window": 140000,
+        "pct_override": null,
+        "predicted_threshold": 107000,
+        "compactions": 4,
+        "compact_boundaries": [
+          {
+            "trigger": "auto",
+            "preTokens": 107286,
+            "postTokens": 12513,
+            "durationMs": 19247,
+            "after_call_index": 13,
+            "preTokens_minus_threshold": 286
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 102377,
+            "postTokens": 20811,
+            "durationMs": 26051,
+            "after_call_index": 19,
+            "preTokens_minus_threshold": -4623
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 105424,
+            "postTokens": 28028,
+            "durationMs": 33814,
+            "after_call_index": 25,
+            "preTokens_minus_threshold": -1576
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 109845,
+            "postTokens": 12674,
+            "durationMs": 30634,
+            "after_call_index": 41,
+            "preTokens_minus_threshold": 2845
+          }
+        ],
+        "context_per_call": [
+          17349,
+          58569,
+          87276,
+          88004,
+          91558,
+          93354,
+          95181,
+          95880,
+          97793,
+          99979,
+          102188,
+          104233,
+          106240,
+          36670,
+          37913,
+          38517,
+          39679,
+          86551,
+          87320,
+          53139,
+          60120,
+          81191,
+          88671,
+          89181,
+          90318,
+          67158,
+          73956,
+          77482,
+          80731,
+          82555,
+          84352,
+          86351,
+          94070,
+          95270,
+          95608,
+          96766,
+          98531,
+          100715,
+          104555,
+          105008,
+          105542,
+          37178,
+          39185,
+          39680,
+          40775
+        ],
+        "phases": [
+          {
+            "phase": 1,
+            "cost_state_usd": 1.104558,
+            "assistant_usd": 1.019828,
+            "hidden_usd": 0.08473,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.08473,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 2,
+            "cost_state_usd": 0.990891,
+            "assistant_usd": 0.895135,
+            "hidden_usd": 0.095756,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.095756,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 3,
+            "cost_state_usd": 1.027479,
+            "assistant_usd": 0.799451,
+            "hidden_usd": 0.228028,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.228028,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 4,
+            "cost_state_usd": 0.621438,
+            "assistant_usd": 0.508587,
+            "hidden_usd": 0.112851,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.112851,
+            "check_anomalies_reported": 0
+          }
+        ],
+        "per_compaction_hidden_usd_range": [
+          0.08473,
+          0.228028
+        ],
+        "hidden_share_of_total": 0.1392,
+        "check_anomalies_planted": 12,
+        "check_anomalies_found_phases_1_3": 12,
+        "reconciliation_md_lists_anomalies": 0,
+        "visible_tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "visible_tests_passed": true,
+        "checker": {
+          "functional_failures": 0,
+          "violations": {},
+          "inv02_modules_delegating_to_clock_now": 0,
+          "inv02_modules_calling_datetime_now_directly": 0,
+          "semantic_violations": 0
+        },
+        "cost_vs_default": 0.1814
+      },
+      "window_100k": {
+        "session_id": "d8350d72-6379-49c4-b8f5-527a68c94f7c",
+        "jsonl_sha256": "2cbfc0b075a4baf7ca32e0fa8c3b0bfbb2af7a0a1224e5e75a758dc41892f4db",
+        "jsonl_bytes": 4341438,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 46,
+        "tokens": {
+          "input": 92,
+          "cache_write_5m": 373786,
+          "cache_write_1h": 0,
+          "cache_read": 1863657,
+          "output": 35688
+        },
+        "assistant_usd": 2.955789,
+        "cost_state_usd": 3.967345,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 3.967345
+        },
+        "first_call_prefix_tokens": 17351,
+        "peak_context_tokens": 74371,
+        "end_context_tokens": 40034,
+        "dollars": {
+          "input_usd": 0.000368,
+          "cache_write_usd": 1.86893,
+          "cache_read_usd": 0.372731,
+          "output_usd": 0.71376
+        },
+        "hidden_usd": 1.011555,
+        "label": "100k window",
+        "flags": "--autocompact 100k",
+        "window": 100000,
+        "pct_override": null,
+        "predicted_threshold": 67000,
+        "compactions": 7,
+        "compact_boundaries": [
+          {
+            "trigger": "auto",
+            "preTokens": 73041,
+            "postTokens": 17923,
+            "durationMs": 15348,
+            "after_call_index": 2,
+            "preTokens_minus_threshold": 6041
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 67953,
+            "postTokens": 12782,
+            "durationMs": 18330,
+            "after_call_index": 11,
+            "preTokens_minus_threshold": 953
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 62981,
+            "postTokens": 29171,
+            "durationMs": 19592,
+            "after_call_index": 14,
+            "preTokens_minus_threshold": -4019
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 85275,
+            "postTokens": 5695,
+            "durationMs": 23787,
+            "after_call_index": 15,
+            "preTokens_minus_threshold": 18275
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 78008,
+            "postTokens": 16189,
+            "durationMs": 26539,
+            "after_call_index": 29,
+            "preTokens_minus_threshold": 11008
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 66924,
+            "postTokens": 16845,
+            "durationMs": 24718,
+            "after_call_index": 32,
+            "preTokens_minus_threshold": -76
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 67009,
+            "postTokens": 11927,
+            "durationMs": 38598,
+            "after_call_index": 43,
+            "preTokens_minus_threshold": 9
+          }
+        ],
+        "context_per_call": [
+          17351,
+          58568,
+          47696,
+          51836,
+          53692,
+          56373,
+          58283,
+          60344,
+          62463,
+          64511,
+          66496,
+          37390,
+          37938,
+          39150,
+          69916,
+          23336,
+          26800,
+          28719,
+          30887,
+          33088,
+          35214,
+          37305,
+          39293,
+          41462,
+          42469,
+          43338,
+          43742,
+          44829,
+          74371,
+          43949,
+          52423,
+          61276,
+          45487,
+          47754,
+          53337,
+          57564,
+          58599,
+          59086,
+          60366,
+          62143,
+          63862,
+          65437,
+          66734,
+          35714,
+          36910,
+          40034
+        ],
+        "phases": [
+          {
+            "phase": 1,
+            "cost_state_usd": 1.219387,
+            "assistant_usd": 0.930789,
+            "hidden_usd": 0.288598,
+            "compactions": 2,
+            "hidden_usd_per_compaction": 0.144299,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 2,
+            "cost_state_usd": 0.994142,
+            "assistant_usd": 0.721968,
+            "hidden_usd": 0.272174,
+            "compactions": 2,
+            "hidden_usd_per_compaction": 0.136087,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 3,
+            "cost_state_usd": 1.257536,
+            "assistant_usd": 0.930977,
+            "hidden_usd": 0.326559,
+            "compactions": 2,
+            "hidden_usd_per_compaction": 0.163279,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 4,
+            "cost_state_usd": 0.49628,
+            "assistant_usd": 0.372055,
+            "hidden_usd": 0.124225,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.124225,
+            "check_anomalies_reported": 0
+          }
+        ],
+        "per_compaction_hidden_usd_range": [
+          0.124225,
+          0.163279
+        ],
+        "hidden_share_of_total": 0.255,
+        "check_anomalies_planted": 12,
+        "check_anomalies_found_phases_1_3": 12,
+        "reconciliation_md_lists_anomalies": 12,
+        "visible_tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "visible_tests_passed": true,
+        "checker": {
+          "functional_failures": 0,
+          "violations": {},
+          "inv02_modules_delegating_to_clock_now": 4,
+          "inv02_modules_calling_datetime_now_directly": 0,
+          "semantic_violations": 0
+        },
+        "cost_vs_default": 0.2517
+      },
+      "compound_25pct_250k": {
+        "session_id": "6ddf20db-680c-4bf2-bd44-04e9b615fbdd",
+        "jsonl_sha256": "d1491cacdb80fec1106892a8240d564693e7c505bdf9164d879d9262dc3be40b",
+        "jsonl_bytes": 4187650,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 40,
+        "tokens": {
+          "input": 80,
+          "cache_write_5m": 352323,
+          "cache_write_1h": 0,
+          "cache_read": 1475214,
+          "output": 33429
+        },
+        "assistant_usd": 2.725558,
+        "cost_state_usd": 3.599844,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 3.599844
+        },
+        "first_call_prefix_tokens": 17347,
+        "peak_context_tokens": 87211,
+        "end_context_tokens": 56504,
+        "dollars": {
+          "input_usd": 0.00032,
+          "cache_write_usd": 1.761615,
+          "cache_read_usd": 0.295043,
+          "output_usd": 0.66858
+        },
+        "hidden_usd": 0.874286,
+        "label": "250,000-token window + 0.25 override",
+        "flags": "--autocompact 250k with CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=25",
+        "window": 250000,
+        "pct_override": 25,
+        "predicted_threshold": 57500,
+        "compactions": 6,
+        "compact_boundaries": [
+          {
+            "trigger": "auto",
+            "preTokens": 89402,
+            "postTokens": 5672,
+            "durationMs": 19685,
+            "after_call_index": 2,
+            "preTokens_minus_threshold": 31902
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 62687,
+            "postTokens": 36130,
+            "durationMs": 25059,
+            "after_call_index": 10,
+            "preTokens_minus_threshold": 5187
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 98668,
+            "postTokens": 12376,
+            "durationMs": 27500,
+            "after_call_index": 11,
+            "preTokens_minus_threshold": 41168
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 57993,
+            "postTokens": 12591,
+            "durationMs": 14968,
+            "after_call_index": 22,
+            "preTokens_minus_threshold": 493
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 68068,
+            "postTokens": 12423,
+            "durationMs": 22357,
+            "after_call_index": 24,
+            "preTokens_minus_threshold": 10568
+          },
+          {
+            "trigger": "auto",
+            "preTokens": 57044,
+            "postTokens": 16262,
+            "durationMs": 21927,
+            "after_call_index": 31,
+            "preTokens_minus_threshold": -456
+          }
+        ],
+        "context_per_call": [
+          17347,
+          87211,
+          23215,
+          25144,
+          27763,
+          32380,
+          36049,
+          37248,
+          37585,
+          38857,
+          83365,
+          36377,
+          39845,
+          41762,
+          43960,
+          46054,
+          48169,
+          50275,
+          52263,
+          54502,
+          56002,
+          56478,
+          36848,
+          66548,
+          36552,
+          37802,
+          39821,
+          42836,
+          47043,
+          51105,
+          53059,
+          43511,
+          44430,
+          45683,
+          47410,
+          49465,
+          50097,
+          53258,
+          53794,
+          56504
+        ],
+        "phases": [
+          {
+            "phase": 1,
+            "cost_state_usd": 1.052411,
+            "assistant_usd": 0.711634,
+            "hidden_usd": 0.340777,
+            "compactions": 1,
+            "hidden_usd_per_compaction": 0.340777,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 2,
+            "cost_state_usd": 1.171225,
+            "assistant_usd": 0.870424,
+            "hidden_usd": 0.300801,
+            "compactions": 2,
+            "hidden_usd_per_compaction": 0.150401,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 3,
+            "cost_state_usd": 1.134717,
+            "assistant_usd": 0.902009,
+            "hidden_usd": 0.232708,
+            "compactions": 3,
+            "hidden_usd_per_compaction": 0.077569,
+            "check_anomalies_reported": 4
+          },
+          {
+            "phase": 4,
+            "cost_state_usd": 0.241491,
+            "assistant_usd": 0.241491,
+            "hidden_usd": 0.0,
+            "compactions": 0,
+            "hidden_usd_per_compaction": null,
+            "check_anomalies_reported": 0
+          }
+        ],
+        "per_compaction_hidden_usd_range": [
+          0.077569,
+          0.340777
+        ],
+        "hidden_share_of_total": 0.2429,
+        "check_anomalies_planted": 12,
+        "check_anomalies_found_phases_1_3": 12,
+        "reconciliation_md_lists_anomalies": 12,
+        "visible_tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "visible_tests_passed": true,
+        "checker": {
+          "functional_failures": 0,
+          "violations": {},
+          "inv02_modules_delegating_to_clock_now": 0,
+          "inv02_modules_calling_datetime_now_directly": 0,
+          "semantic_violations": 0
+        },
+        "cost_vs_default": 0.1358
+      }
+    },
+    "inv02_explanation": "The checker's INV-02 rule flags any .now() call in a module through an AST match. The 180k and 100k arms replaced datetime.datetime.now() with clock.now(), which is the sanctioned fix but still matches the rule. The other three arms deleted the unused _stamp line. No arm calls datetime.now() directly in a module.",
+    "w140k_reconciliation_note": "The 140k arm reported all 12 CHECK_ANOMALY rows in phases 1-3, but its RECONCILIATION.md does not repeat them because the phase 4 prompt did not ask for anomalies."
+  },
+  "clear_vs_warm": {
+    "setup": {
+      "tasks": [
+        "median_bug",
+        "slice_bug",
+        "keep_currency"
+      ],
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "prompt_cache_ttl": "5m",
+      "isolated_arm": "3 fresh sessions, equivalent to /clear between tasks",
+      "shared_arm": "1 session, 3 back-to-back --resume turns"
+    },
+    "isolated": {
+      "median_bug": {
+        "session_id": "53645ba3-afe2-4008-8268-269ab4fe2efb",
+        "jsonl_sha256": "9c2ef12321cee0c84384e55c138621cd5df8353f0b29d829b4c3b50ccec2b779",
+        "jsonl_bytes": 160317,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 3,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 6271,
+          "cache_write_1h": 0,
+          "cache_read": 45825,
+          "output": 483
+        },
+        "assistant_usd": 0.050204,
+        "cost_state_usd": 0.050204,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.050204
+        },
+        "first_call_prefix_tokens": 17066,
+        "peak_context_tokens": 17652,
+        "end_context_tokens": 17652,
+        "dollars": {
+          "input_usd": 2.4e-05,
+          "cache_write_usd": 0.031355,
+          "cache_read_usd": 0.009165,
+          "output_usd": 0.00966
+        },
+        "hidden_usd": 0.0,
+        "tests": {
+          "exit_code": 0,
+          "passed": 3,
+          "failed": 0
+        },
+        "tests_passed": true
+      },
+      "slice_bug": {
+        "session_id": "9b1db275-555f-45e5-92cd-ac2ee014bd98",
+        "jsonl_sha256": "ad6750e9a353471c44ba29a2e5a17a481b570a851080390ce021ca7656d1e94d",
+        "jsonl_bytes": 159904,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 3,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 6301,
+          "cache_write_1h": 0,
+          "cache_read": 45847,
+          "output": 423
+        },
+        "assistant_usd": 0.049158,
+        "cost_state_usd": 0.049158,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.049158
+        },
+        "first_call_prefix_tokens": 17068,
+        "peak_context_tokens": 17682,
+        "end_context_tokens": 17682,
+        "dollars": {
+          "input_usd": 2.4e-05,
+          "cache_write_usd": 0.031505,
+          "cache_read_usd": 0.009169,
+          "output_usd": 0.00846
+        },
+        "hidden_usd": 0.0,
+        "tests": {
+          "exit_code": 0,
+          "passed": 4,
+          "failed": 0
+        },
+        "tests_passed": true
+      },
+      "keep_currency": {
+        "session_id": "b6658ae1-45da-403b-9d56-87ba8b399c37",
+        "jsonl_sha256": "96324001c864cdef66edce480c101f7ec9670cfc4abc1b71b3cb1e6500238c03",
+        "jsonl_bytes": 161296,
+        "claude_code_version": [
+          "2.1.325"
+        ],
+        "entrypoint": [
+          "sdk-cli"
+        ],
+        "models": [
+          "claude-opus-5-5"
+        ],
+        "effort": [
+          "medium"
+        ],
+        "prompt_cache_ttl": [
+          "5m"
+        ],
+        "max_output_tokens": [
+          128000
+        ],
+        "assistant_calls": 3,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 6281,
+          "cache_write_1h": 0,
+          "cache_read": 45835,
+          "output": 537
+        },
+        "assistant_usd": 0.051336,
+        "cost_state_usd": 0.051336,
+        "cost_state_by_model_usd": {
+          "claude-opus-5-5": 0.051336
+        },
+        "first_call_prefix_tokens": 17082,
+        "peak_context_tokens": 17662,
+        "end_context_tokens": 17662,
+        "dollars": {
+          "input_usd": 2.4e-05,
+          "cache_write_usd": 0.031405,
+          "cache_read_usd": 0.009167,
+          "output_usd": 0.01074
+        },
+        "hidden_usd": 0.0,
+        "tests": {
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0
+        },
+        "tests_passed": true
+      }
+    },
+    "shared": {
+      "session_id": "760891f7-8ef3-470d-bc3e-26177ffe8712",
+      "jsonl_sha256": "971116f2e1c5010a3664ddc723f15c091a167908fc02643b6f95100b042ecd59",
+      "jsonl_bytes": 215305,
+      "claude_code_version": [
+        "2.1.325"
+      ],
+      "entrypoint": [
+        "sdk-cli"
+      ],
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "effort": [
+        "medium"
+      ],
+      "prompt_cache_ttl": [
+        "5m"
+      ],
+      "max_output_tokens": [
+        128000
+      ],
+      "assistant_calls": 9,
+      "tokens": {
+        "input": 18,
+        "cache_write_5m": 8884,
+        "cache_write_1h": 0,
+        "cache_read": 158381,
+        "output": 1638
+      },
+      "assistant_usd": 0.108928,
+      "cost_state_usd": 0.108928,
+      "cost_state_by_model_usd": {
+        "claude-opus-5-5": 0.108928
+      },
+      "first_call_prefix_tokens": 17069,
+      "peak_context_tokens": 20265,
+      "end_context_tokens": 20265,
+      "dollars": {
+        "input_usd": 7.2e-05,
+        "cache_write_usd": 0.04442,
+        "cache_read_usd": 0.031676,
+        "output_usd": 0.03276
+      },
+      "hidden_usd": 0.0,
+      "turns": [
+        {
+          "task": "median_bug",
+          "cost_usd": 0.050567
+        },
+        {
+          "task": "slice_bug",
+          "cost_usd": 0.025671
+        },
+        {
+          "task": "keep_currency",
+          "cost_usd": 0.03269
+        }
+      ],
+      "tests": {
+        "exit_code": 0,
+        "passed": 9,
+        "failed": 0
+      },
+      "tests_passed": true
+    },
+    "totals": {
+      "isolated_usd": 0.150698,
+      "shared_usd": 0.108928,
+      "shared_saving_usd": 0.04177,
+      "shared_saving_pct": 27.72,
+      "isolated_tokens": {
+        "input": 18,
+        "cache_write_5m": 18853,
+        "cache_write_1h": 0,
+        "cache_read": 137507,
+        "output": 1443
+      },
+      "shared_tokens": {
+        "input": 18,
+        "cache_write_5m": 8884,
+        "cache_write_1h": 0,
+        "cache_read": 158381,
+        "output": 1638
+      },
+      "isolated_dollars": {
+        "input_usd": 7.2e-05,
+        "cache_write_usd": 0.094265,
+        "cache_read_usd": 0.027501,
+        "output_usd": 0.02886
+      },
+      "shared_dollars": {
+        "input_usd": 7.2e-05,
+        "cache_write_usd": 0.04442,
+        "cache_read_usd": 0.031676,
+        "output_usd": 0.03276
+      },
+      "cache_write_ratio": 2.122
+    }
+  }
+}

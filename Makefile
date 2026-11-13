@@ -1,10 +1,13 @@
-.PHONY: test simulate analyze-fixture benchmark-plan
+.PHONY: test simulate live-figures analyze-fixture benchmark-plan
 
 test:
 	python3 -m pytest -q
 
 simulate:
 	python3 -m cc_usage_study.simulate --out outputs
+
+live-figures:
+	python3 -m cc_usage_study.experiments figures --out outputs
 
 analyze-fixture:
 	python3 -m cc_usage_study.analyze fixtures/synthetic/projects --split-date 2026-10-01 --sessions

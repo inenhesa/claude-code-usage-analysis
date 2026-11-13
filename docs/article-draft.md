@@ -2,7 +2,7 @@
 
 On a native 1M model, Claude Code waits until about 967k tokens before it auto-compacts. A long coding thread spends the day re-sending that history. Prompt caching already discounts a repeated prefix by 90 to 95 percent, and every compaction has a fixed cost, so the cheapest trigger is a valley, not "as early as possible" and not the default.
 
-This piece finds that valley across ordinary developer workflows. A second question stays in its own lane: what changes when you move between Claude Desktop, the official CLI, and T3 Code. The numbers are the caching model. Slots marked `[MEASURED_LOCAL_DATA: ...]` stay empty until a real log is plugged in.
+This piece finds that valley across ordinary developer workflows. A second question stays in its own lane: what changes when you move between Claude Desktop, the official CLI, and T3 Code. The workflow table is the caching model. The live numbers come from 14 Claude Opus 5.5 sessions run on 13 November 2026 with a dedicated API key, $18.57 in total, and are stored in `outputs/live_experiments.json`.
 
 ## The setting to copy
 
@@ -16,7 +16,7 @@ CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18 claude
 claude --autocompact 180000
 ```
 
-`18` is 18% of a 1M window, which is 180k. `180000` is the window itself. Do not set both. Stacking a window and a percentage compounds, and the result can sit far below the valley. The arithmetic is in `docs/reference.md`.
+Neither fires exactly where it reads. Claude Code v2.1.325 (functions `tle` and `WX`) subtracts an output reserve of min(maxOutputTokens, 20,000) from the window, then a 13,000-token buffer. `--autocompact 180000` fires at 147,000. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18` on a 1M window fires at floor(980,000 x 0.18) = 176,400. The Opus 5.5 valley is flat enough that both land within a point of its floor. Do not set both. Stacking a window and a percentage multiplies: a 250,000 window with 25 fires at 57,500. The arithmetic is in `docs/reference.md`.
 
 On a 200k-context model, including a native 1M model held there with `CLAUDE_CODE_DISABLE_1M_CONTEXT=1`, leave the default. Forcing the trigger down to 40k or 50k costs **227% more** in this model. A trigger near 120k is only about **6%** under the 200k default, which is not a reason to chase a low percentage.
 
@@ -40,6 +40,26 @@ Every row is the same physical-cache simulator, sweeping the trigger and keeping
 Two patterns matter more than any single cell. Heavier working memory pushes the valley up: 30,000 tokens re-injected after each summary, plus larger file reads, moves the cheapest trigger from 160k to **280k**. Losing rules after each summary pushes it further, to **360k**. The first fix is root `CLAUDE.md`, not a lower trigger. Anthropic documents [what survives compaction](https://code.claude.com/docs/en/context-window). Root `CLAUDE.md` comes back. A rule that lived only in the middle of the chat often does not.
 
 A short bugfix is the other edge. Three user turns of ten calls never reach 180k, so that setting matches the default at **0%**. Force 100k and the estimated cost is **8% higher**, even though the raw token count falls. `/clear` is the right tool between unrelated tasks.
+
+## What 14 live runs showed
+
+The model says a low trigger pays on a long session. The live runs asked what it costs on a medium one.
+
+Five arms ran the same 4-phase `LedgerKit v3.2` migration on Opus 5.5, effort medium, 5-minute cache. The default arm never compacted and peaked at 270,132 tokens.
+
+| Arm | Fires at | Compactions | Visible | Hidden summary | Total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Default 1M | 967,000 | 0 | $3.17 | $0.00 | $3.17 |
+| 180k | 147,000 | 2 | $2.80 | $0.37 | $3.17 |
+| 250,000 window + 25 | 57,500 | 6 | $2.73 | $0.87 | $3.60 |
+| 140k | 107,000 | 4 | $3.22 | $0.52 | $3.74 |
+| 100k | 67,000 | 7 | $2.96 | $1.01 | $3.97 |
+
+Two things are not in the usual advice. First, the summary request each compaction sends writes no assistant row in the transcript. Claude Code's own `cost_state` total includes it, and the gap is $0.08-$0.34 per compaction. On 100k it is $1.01, 25.5% of the bill. Second, the visible column alone would tell you every low trigger saved money. The total says only 180k broke even, and the rest lost 14% to 25.2%. A session that tops out near 270k has not run long enough to repay its summaries.
+
+Quality did not move. All five arms passed their tests and the functional checker and reported all 12 planted anomalies. Two arms trip an `INV-02` AST rule only because they routed a timestamp through the sanctioned `clock.now()`.
+
+Short work points the same way. Three quick fixes in three fresh sessions, the same as `/clear` between them, cost $0.1507. The same three in one resumed session cost $0.1089, 27.7% less. The fresh sessions wrote 18,853 cache tokens at $5.00 per million to rebuild the same prefix. The warm one wrote 8,884 and re-read the rest at $0.20.
 
 ## Two levers, not one story
 
@@ -103,6 +123,17 @@ Claude Desktop chat, its Code tab, the official interactive `claude` CLI, and T3
 
 A switch can change the model, the effort, the tools, the instructions, the idle policy, or the window. Any of those can change consumption. Measure `/context` before you compare.
 
+The live comparison held the model, effort, `CLAUDE.md`, and MCP setup fixed, and measured what each client sends.
+
+| | CLI `-p` | CLI interactive | T3 Code v0.1.9 | Desktop v5.1231.2 Code tab |
+| --- | ---: | ---: | ---: | ---: |
+| Cold first request, tokens | 16,850 | 19,528 | 22,842 | 39,749 |
+| Inline / deferred tools | 13 / 13 | 14 / 15 | 15 / 82 | 35 / 82 |
+| System prompt, characters | 7,227 | 7,485 | 12,857 | 25,865 |
+| `noisy_bughunt` fix | | $0.1145 | $0.1362 | $0.2057 |
+
+T3 Code drives the same Claude Code v2.1.325 as the CLI, so the guess was that it would match. It does not. It adds 67 `mcp__t3-code__*` deferred tools, an inline `request_secret` tool, and 5,372 system-prompt characters, including `<runtime_info>` and `<pull_request_linking>` blocks. The cold prefix is 17% larger and the fix cost 19% more than the CLI's main-thread rows, or 9% more than the CLI's total with its background title and side calls. Desktop's Code tab bundles Claude Code v2.1.321 with browser preview, session, and terminal tools: 2.04 times the interactive CLI's cold prefix and 1.80 times its fix cost. All three fixed all three bugs.
+
 A [T3 issue](https://github.com/pingdotgg/t3code/issues/24649) initially reported faster five-hour-meter consumption than the interactive CLI for similar tokens. A later small check reported parity. An upstream report says headless `claude -p` (entrypoint `sdk-cli`) can move the five-hour meter faster per token than interactive `cli`. These are version-specific reports, not an official formula. They do not say the CLI is automatically cheaper.
 
 Match the effective window (`raw_max_tokens` from `/context`), repeat comparable tasks in both orders, and record token buckets where the transcripts exist. Desktop chat does not write this JSONL format. Those cells stay empty. They do not get guessed numbers.
@@ -111,13 +142,9 @@ T3 also writes titles, commit messages, and PR text in runs that may save no ses
 
 ## What a local log still has to show
 
-[MEASURED_LOCAL_DATA: exact setting keys, effective window, date changed, model ids, client versions, plan, and effort.]
+Measured in this study, 13 November 2026: setting keys and effective windows (`--autocompact` 180k, 140k, 100k, and a 250,000 window with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=25`), model `claude-opus-5-5`, effort medium, client versions (Claude CLI v2.1.325, T3 Code v0.1.9, Claude Desktop v5.1231.2), the four token buckets, every compaction `preTokens`, entrypoints, cost per completed task, test and invariant results. One repeat per arm.
 
-[MEASURED_LOCAL_DATA: before and after task counts, the four token buckets, compaction `preTokens`, entrypoint, and cost per successfully completed task. The historical split is observational.]
-
-[MEASURED_LOCAL_DATA: five-hour and weekly start and end percentages for matched blocks, reset boundaries, and whether anything else used the account.]
-
-[MEASURED_LOCAL_DATA: quality results, invariant failures, repair requests, human corrections, elapsed time, and the client comparison, or an explicit "not run."]
+Not measured: five-hour and weekly meter percentages, because every run used an API key with the 5-minute cache, not a subscription with the 1-hour cache. Long sessions past 300k tokens were modeled, not run. A local log of your own fills those in.
 
 The analyzer emits aggregates, not prompt text. The source logs can still contain source code and tool output. Run it only where that is allowed, and read the aggregate before it leaves the machine. If the change was more than the default 30 days of transcript retention ago, the earlier CLI logs may already be gone. Desktop and Cowork transcripts are kept.
 
@@ -125,7 +152,7 @@ The analyzer emits aggregates, not prompt text. The source logs can still contai
 
 Look at a fresh session with `/context`. Remove instructions and noisy tool output you do not need.
 
-Use `/clear` for unrelated tasks. Keep a short handoff when continuity matters.
+Use `/clear` for unrelated tasks. For quick related fixes minutes apart, stay in the session: in the live runs that was 27.7% cheaper.
 
 For genuinely long work on a 1M model, try one setting in the valley. Do not set both:
 
@@ -134,7 +161,7 @@ CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18 claude
 claude --autocompact 180000
 ```
 
-Keep the model and effort fixed. If the working set is huge, or the rules are not in root `CLAUDE.md`, the valley is higher than 180k. Treat the table as a place to test, not as a prescription. Record the actual boundaries.
+If your sessions end under about 270k tokens, leave the default: in the live runs every lower trigger tied or lost once the hidden summary calls were counted. Keep the model and effort fixed. If the working set is huge, or the rules are not in root `CLAUDE.md`, the valley is higher than 180k. Treat the table as a place to test, not as a prescription. Record the actual boundaries.
 
 Check the result with tests. If repairs increase, move the trigger back up or put the rule in root `CLAUDE.md`.
 
@@ -152,3 +179,5 @@ Measure the allowance separately, in percentage points, not as a guessed dollar 
 | One client is guaranteed cheaper. | It is not. Some reports found the opposite direction on the five-hour meter. |
 | Repair counts are universal. | No. Eight repairs and fifteen repairs are two sensitivity runs. |
 | Pauses do not matter. | They do. With idle compaction on, the extra saving from a lower trigger is about 18%. |
+| The transcript shows what compaction cost. | It does not. The summary request writes no assistant row. Use `cost_state` or OTel. In the live 100k arm the gap was 25.5% of the bill. |
+| T3 Code is the CLI with a different window. | It wraps the same Claude Code, then adds 67 deferred tools and 5,372 prompt characters. The same fix cost 19% more. |

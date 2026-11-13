@@ -1,6 +1,6 @@
 # Worked examples
 
-Every count below is either a closed-form illustration or an output of `cc_usage_study.model.simulate` under named assumptions. None of it is a measured account. `k` means 1,000 tokens. A model request is one API call. A user turn can contain several model requests.
+Every count below is either a closed-form illustration or an output of `cc_usage_study.model.simulate` under named assumptions. None of it is a measured account, except the paragraphs marked as live or measured, which come from `outputs/live_experiments.json`. `k` means 1,000 tokens. A model request is one API call. A user turn can contain several model requests.
 
 The long-session numbers are scenario S1 in `outputs/summary.json`: 60 user turns, 8 requests each, 4,000 tokens of new input and 600 tokens of output per request, 20,000 system tokens, 8,000 project tokens, 15,000 tokens re-injected after compaction, a 3,000-token summary, 1-hour TTL, no long gaps, no rework. Cache reads are priced at 0.1x, 1-hour writes at 2x, compaction tails at 1.25x, output at 5x. A warm request reads the previous prompt and writes the previous output plus the new tail.
 
@@ -49,7 +49,7 @@ CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=25 claude
 claude --autocompact 250000
 ```
 
-In T3 Code, Settings, Providers, Claude, Auto-compact after `250000` is the window. A source comment says the UI treats the threshold as that window minus about 33,000. Record `compactMetadata.preTokens` rather than the label.
+In T3 Code, Settings, Providers, Claude, Auto-compact after `250000` is the window. A source comment says the UI treats the threshold as that window minus about 33,000, and Claude Code v2.1.325 agrees: the window minus a 20,000 output reserve minus a 13,000 buffer, so `250000` fires at 217,000. Record `compactMetadata.preTokens` rather than the label.
 
 ## Example 2. Twenty requests where both triggers do nothing
 
@@ -74,7 +74,7 @@ At a finished, unrelated task, `/clear` drops the conversation. It does not undo
 }
 ```
 
-The percentage applies to the window. This model's trigger is 62,500, and it warns. S8 compares that trigger with about 967k: raw-prompt saving 6.21, API saving 1.43, compactions 158 against 2. S8b compares it with 25% alone (250k): API saving 0.70, so the compounded arm costs more at API prices than the percentage by itself. Raw tokens still look better (2.04). That is how a transcript-only reading flatters a thrash.
+The percentage applies to the window. This model's trigger is 62,500, and it warns. Claude Code v2.1.325 applies it to the window after the 20,000 output reserve: floor(230,000 x 0.25) = 57,500. The live arm compacted 6 times on a 4-phase build and cost 14% more than the default, with $0.87 of that in summary requests the transcript does not show. S8 compares that trigger with about 967k: raw-prompt saving 6.21, API saving 1.43, compactions 158 against 2. S8b compares it with 25% alone (250k): API saving 0.70, so the compounded arm costs more at API prices than the percentage by itself. Raw tokens still look better (2.04). That is how a transcript-only reading flatters a thrash.
 
 The 100k floor is a limit of the absolute window control. It does not force a percentage override back up to 100k. On a 200k context, percentage 25 is 50,000. S6: API saving 0.31 against the 200k boundary. The low arm compacts 476 times and costs more.
 
@@ -98,7 +98,7 @@ A concrete failure the benchmark can score: an invoice rule that says round only
 
 ## Example 5. Desktop, CLI, T3 Code
 
-Do not start with invented per-client token counts.
+Measured on 13 November 2026, Opus 5.5, effort medium, identical `CLAUDE.md`, no user MCP servers. Cold first request: Claude CLI v2.1.325 `claude -p` 16,850 tokens, interactive 19,528, T3 Code v0.1.9 22,842, Claude Desktop v5.1231.2 Code tab 39,749. The same `noisy_bughunt` fix: CLI $0.1145 in main-thread rows ($0.1247 with background calls), T3 Code $0.1362, Desktop $0.2057. The full table is in `benchmarks/client_comparison.md`. Use your own numbers for your own setup.
 
 | Surface | What to verify | Where tokens might exist |
 | --- | --- | --- |
@@ -110,6 +110,6 @@ Do not start with invented per-client token counts.
 
 T3's idle choices, from its provider doc, are When you return, Before the cache expires (beta), and Never. Match them or label them a confounder. Prompt suggestions are off by default in T3. Text-generation runs for titles and commit messages can be absent from JSONL. None of those, by themselves, is a measured 2x.
 
-For each completed task record fresh input, 5-minute writes, 1-hour writes, cache reads, and output. Record meter movement in percentage points, with no other account usage in between. [MEASURED_LOCAL_DATA: those cells stay empty until a real run.]
+For each completed task record fresh input, 5-minute writes, 1-hour writes, cache reads, and output. Record meter movement in percentage points, with no other account usage in between. The live runs used an API key, so their meter cells are empty.
 
 A matched-token difference in the meter supports a version-specific allowance observation. It does not by itself mean one client sent fewer tokens. See `benchmarks/client_comparison.md`.

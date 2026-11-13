@@ -409,17 +409,22 @@ def write_figures(summary: dict, out: Path) -> None:
             "savefig.facecolor": "white",
             "savefig.edgecolor": "white",
             "axes.facecolor": "white",
-            "text.color": "#1a1a1a",
-            "axes.labelcolor": "#1a1a1a",
-            "xtick.color": "#1a1a1a",
-            "ytick.color": "#1a1a1a",
-            "axes.titlecolor": "#1a1a1a",
+            "text.color": "#1f2328",
+            "axes.labelcolor": "#1f2328",
+            "xtick.color": "#1f2328",
+            "ytick.color": "#1f2328",
+            "axes.titlecolor": "#1f2328",
         }
     )
-    navy = "#143d66"
-    clay = "#c4511b"
-    green = "#1f7a4d"
-    ink = "#1a1a1a"
+    # Plain green and red only. Green is the cheaper setting or the baseline that
+    # wins; red is the default that costs more, or the setting that backfires.
+    green = "#1a7f37"
+    green_light = "#2da44e"
+    red = "#cf222e"
+    red_dark = "#a40e26"
+    red_soft = "#ff8182"
+    ink = "#1f2328"
+    muted = "#59636e"
     by_name = {row["name"]: row for row in summary["scenarios"]}
     figures = out / "figures"
     figures.mkdir(parents=True, exist_ok=True)
@@ -432,10 +437,10 @@ def write_figures(summary: dict, out: Path) -> None:
         ax.set_facecolor("white")
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color("#d5d8dc")
-        ax.spines["bottom"].set_color("#d5d8dc")
+        ax.spines["left"].set_color("#d0d7de")
+        ax.spines["bottom"].set_color("#d0d7de")
         ax.tick_params(length=0, pad=6)
-        ax.grid(axis="y", color="#eef0f2", linewidth=1)
+        ax.grid(axis="y", color="#eaeef2", linewidth=1)
         ax.set_axisbelow(True)
         return fig, ax
 
@@ -460,8 +465,8 @@ def write_figures(summary: dict, out: Path) -> None:
         ax.legend(frameon=False, loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
 
     fig, ax = axes((9.4, 5.2))
-    ax.plot(_cumsum(hi, "raw_prompt"), color=navy, linewidth=2.2, label="about 967k")
-    ax.plot(_cumsum(lo, "raw_prompt"), color=clay, linewidth=2.2, label="250k")
+    ax.plot(_cumsum(hi, "raw_prompt"), color=red, linewidth=2.2, label="about 967k")
+    ax.plot(_cumsum(lo, "raw_prompt"), color=green, linewidth=2.2, label="250k")
     title(ax, "Raw prompt tokens in one long session")
     ax.set_xlabel("Model request", labelpad=8)
     ax.set_ylabel("Cumulative prompt tokens", labelpad=8)
@@ -470,8 +475,8 @@ def write_figures(summary: dict, out: Path) -> None:
     finish(fig, figures / "cumulative_raw_tokens.png")
 
     fig, ax = axes((9.4, 5.2))
-    ax.plot(_cumsum(hi, "api"), color=navy, linewidth=2.2, label="about 967k")
-    ax.plot(_cumsum(lo, "api"), color=clay, linewidth=2.2, label="250k")
+    ax.plot(_cumsum(hi, "api"), color=red, linewidth=2.2, label="about 967k")
+    ax.plot(_cumsum(lo, "api"), color=green, linewidth=2.2, label="250k")
     title(ax, "Same session, priced like the API")
     ax.set_xlabel("Model request", labelpad=8)
     ax.set_ylabel("Cumulative API-equivalent units", labelpad=8)
@@ -479,8 +484,6 @@ def write_figures(summary: dict, out: Path) -> None:
     legend_side(ax)
     finish(fig, figures / "cumulative_api_equivalent.png")
 
-    teal = "#0b6e6a"
-    coral = "#e23b2f"
     deep_reads = next(row for row in summary["use_cases"] if row["id"] == "deep_0_05")
     sweet_trigger = deep_reads["best_trigger"]
     sweet_run = simulate(_at_trigger(Assumptions(cache_read_multiplier=0.05), sweet_trigger))
@@ -488,17 +491,17 @@ def write_figures(summary: dict, out: Path) -> None:
     token_drop = (1 - sweet_run.totals()["prompt_tokens"] / default_run.totals()["prompt_tokens"]) * 100
     cost_drop = (1 - sweet_run.cost("api") / default_run.cost("api")) * 100
     fig, ax = axes((10.2, 5.6))
-    ax.fill_between(range(len(_context(default_run))), _context(default_run), color=navy, alpha=0.13, linewidth=0)
-    ax.fill_between(range(len(_context(sweet_run))), _context(sweet_run), color=teal, alpha=0.16, linewidth=0)
+    ax.fill_between(range(len(_context(default_run))), _context(default_run), color=red, alpha=0.10, linewidth=0)
+    ax.fill_between(range(len(_context(sweet_run))), _context(sweet_run), color=green, alpha=0.16, linewidth=0)
     ax.plot(
         _context(default_run),
-        color=navy,
+        color=red,
         linewidth=2.0,
         label=f"Default ~967k: compacts {default_run.compactions} times",
     )
     ax.plot(
         _context(sweet_run),
-        color=teal,
+        color=green,
         linewidth=2.0,
         label=f"Sweet spot {sweet_trigger // 1000}k: compacts {sweet_run.compactions} times",
     )
@@ -517,7 +520,7 @@ def write_figures(summary: dict, out: Path) -> None:
         ),
         transform=ax.transAxes,
         fontsize=11,
-        color="#344054",
+        color=muted,
         clip_on=False,
     )
     ax.set_xlabel("Model request", labelpad=8)
@@ -534,24 +537,26 @@ def write_figures(summary: dict, out: Path) -> None:
         "0.025": by_name["S7-0.025"]["api_hi"],
     }
     fig, ax = axes((10.6, 6.1))
-    ax.axvspan(70_000, 100_000, color="#fde8e6", zorder=0)
-    ax.axvspan(150_000, 200_000, color="#e6f4f1", zorder=0)
+    ax.axvspan(70_000, 100_000, color="#ffebe9", zorder=0)
+    ax.axvspan(150_000, 200_000, color="#dafbe1", zorder=0)
+    # Red for the priciest reads, solid green for Opus 5.5 / Sonnet 5.5, light
+    # dashed green for the cheapest reads.
     series = (
-        ("0.1", "Standard 0.1x cache reads", navy),
-        ("0.05", "Opus 5.5 / Sonnet 5.5 (0.05x reads)", clay),
-        ("0.025", "Fable / Mythos (0.025x reads)", green),
+        ("0.1", "Standard 0.1x cache reads", red, "-"),
+        ("0.05", "Opus 5.5 / Sonnet 5.5 (0.05x reads)", green, "-"),
+        ("0.025", "Fable / Mythos (0.025x reads)", green_light, (0, (5, 2))),
     )
     valleys = []
-    for key, label, color in series:
+    for key, label, color, style in series:
         block = summary["eoq"]["simulated_best_10k_grid"][key]
         points = block["curve"]
         relative = [point["api"] / baselines[key] * 100 for point in points]
         triggers = [point["trigger"] for point in points]
-        ax.plot(triggers, relative, color=color, linewidth=2.4, label=label, zorder=3)
+        ax.plot(triggers, relative, color=color, linewidth=2.4, linestyle=style, label=label, zorder=3)
         best_relative = block["best_api"] / baselines[key] * 100
         ax.scatter([block["best_trigger"]], [best_relative], color=color, s=48, zorder=4)
         valleys.append((block["best_trigger"], best_relative, color))
-    ax.axhline(100, color="#98a2b3", linestyle="--", linewidth=1.0, zorder=1)
+    ax.axhline(100, color="#8c959f", linestyle="--", linewidth=1.0, zorder=1)
     ax.text(
         392_000,
         101.4,
@@ -559,7 +564,7 @@ def write_figures(summary: dict, out: Path) -> None:
         ha="right",
         va="bottom",
         fontsize=11,
-        color="#667085",
+        color=muted,
     )
     ax.text(
         175_000,
@@ -568,10 +573,10 @@ def write_figures(summary: dict, out: Path) -> None:
         ha="center",
         va="center",
         fontsize=12,
-        color="#0f6d6c",
+        color=green,
         zorder=4,
     )
-    # 120k sits up and to the right, inside the bowl, off the falling blue slope.
+    # 120k sits up and to the right, inside the bowl, off the falling red slope.
     # 160k and 220k sit above their dots, under the sweet-spot caption.
     callouts = (
         ((8, 12), "left", "bottom"),
@@ -602,7 +607,7 @@ def write_figures(summary: dict, out: Path) -> None:
         ha="center",
         va="top",
         fontsize=11,
-        color="#b42318",
+        color=red,
         annotation_clip=False,
     )
     ax.set_ylabel("Session cost, % of the ~967k default", labelpad=8)
@@ -628,14 +633,14 @@ def write_figures(summary: dict, out: Path) -> None:
     labels = [change_label(change) for change in changes]
     fig, ax = axes((11.8, 7.2))
     positions = list(range(len(compare)))
-    colors = [teal if change <= 0 else coral for change in changes]
+    colors = [green if change <= 0 else red for change in changes]
     ax.barh(positions, changes, color=colors, height=0.62, zorder=3)
     ax.axvline(0, color=ink, linewidth=1.1, zorder=2)
     ax.set_yticks(positions)
     ax.set_yticklabels([label for label, _ in compare])
     ax.invert_yaxis()
     ax.grid(axis="y", visible=False)
-    ax.grid(axis="x", color="#eef0f2", linewidth=1)
+    ax.grid(axis="x", color="#eaeef2", linewidth=1)
     label_x = max(changes) + 12
     for index, (change, text, color) in enumerate(zip(changes, labels, colors)):
         ax.text(label_x, index, text, va="center", ha="left", fontsize=12, color=color, clip_on=False)
@@ -647,8 +652,8 @@ def write_figures(summary: dict, out: Path) -> None:
     amnesia = [row for row in summary["scenarios"] if row["name"].startswith("S3-")]
     fig, ax = axes((9.4, 5.2))
     ks = [0, 3, 6, 10, 15]
-    ax.plot(ks, [row["api_saving"] for row in amnesia], color=navy, marker="o", linewidth=2.2, label="API-equivalent")
-    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=clay, marker="o", linewidth=2.2, label="raw prompt")
+    ax.plot(ks, [row["api_saving"] for row in amnesia], color=green, marker="o", linewidth=2.2, label="API-equivalent")
+    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=red, marker="o", linewidth=2.2, linestyle=(0, (4, 2)), label="raw prompt")
     ax.axhline(1.0, color=ink, linewidth=1)
     title(ax, "Repair work can erase the priced saving")
     ax.set_xlabel("Extra 8k-tail requests after each compaction", labelpad=8)
@@ -658,8 +663,8 @@ def write_figures(summary: dict, out: Path) -> None:
     finish(fig, figures / "amnesia_breakeven.png")
     # Same figure, kept under the older filename.
     fig, ax = axes((9.4, 5.2))
-    ax.plot(ks, [row["api_saving"] for row in amnesia], color=navy, marker="o", linewidth=2.2, label="API-equivalent")
-    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=clay, marker="o", linewidth=2.2, label="raw prompt")
+    ax.plot(ks, [row["api_saving"] for row in amnesia], color=green, marker="o", linewidth=2.2, label="API-equivalent")
+    ax.plot(ks, [row["raw_prompt_saving"] for row in amnesia], color=red, marker="o", linewidth=2.2, linestyle=(0, (4, 2)), label="raw prompt")
     ax.axhline(1.0, color=ink, linewidth=1)
     title(ax, "Repair work can erase the priced saving")
     ax.set_xlabel("Extra 8k-tail requests after each compaction", labelpad=8)
@@ -672,7 +677,7 @@ def write_figures(summary: dict, out: Path) -> None:
     labels = ["1h cache\nidle off", "1h cache\nidle on", "5m cache\n7-minute gaps"]
     fig, ax = axes((9.4, 5.2))
     heights = [by_name[name]["api_saving"] for name in names]
-    bars = ax.bar(labels, heights, color=[navy, clay, green], width=0.62)
+    bars = ax.bar(labels, heights, color=[green if height >= 1 else red for height in heights], width=0.62)
     ax.axhline(1.0, color=ink, linewidth=1)
     title(ax, "Pauses change the answer")
     ax.set_ylabel("API cost, 967k / 250k", labelpad=8)
@@ -683,8 +688,8 @@ def write_figures(summary: dict, out: Path) -> None:
 
     compound = simulate(replace(Assumptions(), window=250_000, pct=0.25))
     fig, ax = axes((9.4, 5.2))
-    ax.plot(_context(hi), color=navy, linewidth=1.6, label="about 967k")
-    ax.plot(_context(compound), color=clay, linewidth=1.6, label="250k window and 25% (62.5k)")
+    ax.plot(_context(hi), color=green, linewidth=1.6, label="about 967k")
+    ax.plot(_context(compound), color=red, linewidth=1.6, label="250k window and 0.25 override\n(model 62.5k, live CLI 57.5k)")
     title(ax, "Two knobs together are not a 250k experiment")
     ax.set_xlabel("Model request", labelpad=8)
     ax.set_ylabel("Prompt size", labelpad=8)
@@ -698,7 +703,7 @@ def write_figures(summary: dict, out: Path) -> None:
     ax.plot(
         [0.1, 0.05, 0.025],
         [by_name[name]["api_saving"] for name in reads],
-        color=navy,
+        color=green,
         marker="o",
         linewidth=2.2,
         label="API-equivalent",
@@ -706,9 +711,10 @@ def write_figures(summary: dict, out: Path) -> None:
     ax.plot(
         [0.1, 0.05, 0.025],
         [by_name[name]["raw_prompt_saving"] for name in reads],
-        color=clay,
+        color=red,
         marker="o",
         linewidth=2.2,
+        linestyle=(0, (4, 2)),
         label="raw prompt",
     )
     title(ax, "Cheaper cache reads shrink the priced saving")
@@ -721,8 +727,8 @@ def write_figures(summary: dict, out: Path) -> None:
     short_hi = simulate(Assumptions(user_turns=3, calls_per_turn=10))
     short_lo = simulate(replace(short_hi.assumptions, pct=0.25))
     fig, ax = axes((9.4, 5.2))
-    ax.plot(_cumsum(short_hi, "raw_prompt"), color=navy, linewidth=2.4, label="about 967k")
-    ax.plot(_cumsum(short_lo, "raw_prompt"), color=clay, linewidth=2.4, linestyle=(0, (1, 1.4)), label="250k")
+    ax.plot(_cumsum(short_hi, "raw_prompt"), color=red, linewidth=2.4, label="about 967k")
+    ax.plot(_cumsum(short_lo, "raw_prompt"), color=green, linewidth=2.4, linestyle=(0, (1, 1.4)), label="250k")
     title(ax, "A short bugfix never reaches either trigger")
     ax.set_xlabel("Model request", labelpad=8)
     ax.set_ylabel("Cumulative prompt tokens", labelpad=8)
@@ -732,9 +738,9 @@ def write_figures(summary: dict, out: Path) -> None:
 
     fig, ax = axes((9.4, 5.2))
     triggers = [row["trigger"] for row in curve]
-    ax.plot(triggers, [row["api"] for row in curve], color=navy, linewidth=2.2)
+    ax.plot(triggers, [row["api"] for row in curve], color=green_light, linewidth=2.2)
     best = summary["eoq"]["simulated_best_10k_grid"]["0.1"]
-    ax.scatter([best["best_trigger"]], [best["best_api"]], color=clay, s=46, zorder=4)
+    ax.scatter([best["best_trigger"]], [best["best_api"]], color=green, s=60, zorder=4)
     title(ax, "Standard 0.1x reads, cheapest near 120k")
     ax.set_xlabel("Compaction trigger", labelpad=8)
     ax.set_ylabel("API-equivalent cost of the session", labelpad=8)

@@ -1,6 +1,6 @@
 # Reference
 
-Checked 13 November 2026. Chart numbers elsewhere in this repo come from the physical-caching simulator, not from an account. This page is the setting and accounting detail the README leaves out.
+Checked 13 November 2026. Workflow chart numbers come from the physical-caching simulator, not from an account. The `live_*` charts and `outputs/live_experiments.json` are 14 measured Claude Opus 5.5 sessions. This page is the setting and accounting detail the README leaves out.
 
 ## Words
 
@@ -19,9 +19,19 @@ The environment variable outranks the flag, and the flag outranks the setting. S
 
 `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=100` does not delay compaction. A "95 percent" arm can be identical to the default. The docs do not publish a default percentage. The phrase "95 percent or so" is close to the documented about-967K trigger on a 1M context. It is not a setting named 95.
 
-If both knobs are set, this model applies the percentage to the window and warns. A 250,000 window plus 25% fires at 62,500. Scenario S8: that arm sends 6.21 times fewer raw prompt tokens than about 967k, but only 1.43 times less API-equivalent cost, and it costs more than 25% alone (S8b, API ratio 0.70). Check `compactMetadata.preTokens` before trusting a label. Whether production subtracts anything else after the percentage is unverified.
+If both knobs are set, this model applies the percentage to the window and warns. A 250,000 window plus 25% fires at 62,500. Scenario S8: that arm sends 6.21 times fewer raw prompt tokens than about 967k, but only 1.43 times less API-equivalent cost, and it costs more than 25% alone (S8b, API ratio 0.70). Check `compactMetadata.preTokens` before trusting a label.
 
-T3 Code's "Auto-compact after" writes the window integer, 100,000 to 1,000,000. A comment in `ClaudeAdapterV2.ts` (commit 65e4272, read 13 November 2026) says Claude Code compacts about 33,000 tokens short of that window, so 250,000 is shown as about 217,000. That comment is not an Anthropic spec. This model subtracts 33,000 only when `reserve=33000` (S1b: API 2.15, raw prompt 3.39). T3 also loads user settings by default, so a percentage in `~/.claude/settings.json` still applies on top of the window.
+Production does subtract more. Claude Code v2.1.325, functions `tle` and `WX` in the shipped binary:
+
+```text
+effective_window = window - min(maxOutputTokens, 20000)
+threshold = effective_window - 13000                                       (no override)
+threshold = min(floor(effective_window * pct / 100), effective_window - 13000)   (with the override)
+```
+
+So the live 250,000 window with 25 fires at floor(230,000 x 0.25) = 57,500, not 62,500. The live arm logged `preTokens` 89,402, 62,687, 98,668, 57,993, 68,068, and 57,044. The simulator keeps its simpler 62,500, which understates the trap slightly. A plain window fires 33,000 short of the number you type when `maxOutputTokens` is at least 20,000: 180k fires at 147,000, 140k at 107,000, 100k at 67,000. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18` on a 1M window fires at 176,400. `preTokens` is logged by a different counter from the trigger check, so a fire can land a few thousand tokens under the line or overshoot after a large tool batch.
+
+T3 Code's "Auto-compact after" writes the window integer, 100,000 to 1,000,000. A comment in `ClaudeAdapterV2.ts` (commit 65e4272, read 13 November 2026) says Claude Code compacts about 33,000 tokens short of that window, so 250,000 is shown as about 217,000. That comment is not an Anthropic spec, but the v2.1.325 binary agrees: 20,000 of output reserve plus a 13,000 buffer. This model subtracts 33,000 only when `reserve=33000` (S1b: API 2.15, raw prompt 3.39). T3 also loads user settings by default, so a percentage in `~/.claude/settings.json` still applies on top of the window.
 
 ## Which window you actually get
 
@@ -35,7 +45,7 @@ From the [model config](https://code.claude.com/docs/en/model-config), if you se
 
 [Changelog v2.1.323](https://code.claude.com/docs/en/changelog) (12 November 2026) moved Sonnet 5's default window to the full 1M, so those sessions compact at about 967K instead of about 934K. The same release stopped applying the percentage override to auto-memory extraction, and in some sessions to `/btw`, inside Anthropic-hosted cloud sessions. The main conversation still follows the override.
 
-`1,000,000 - 33,000 = 967,000` matches the documented approximation. That match is an inference, not a statement from Anthropic. On a 200k window the absolute knob's 100k floor means 25% and 10% both clamp if you use the window control. The percentage override is not forced back up to 100k. On a 200k context, 25% is 50,000 tokens, and S6 says that thrash raises API cost (ratio 0.31).
+`1,000,000 - 33,000 = 967,000` matches the documented approximation, and the v2.1.325 binary computes it as 1,000,000 - 20,000 - 13,000. On a 200k window the absolute knob's 100k floor means 25% and 10% both clamp if you use the window control. The percentage override is not forced back up to 100k. On a 200k context, 25% is 50,000 tokens, and S6 says that thrash raises API cost (ratio 0.31).
 
 `autoCompactEnabled` defaults to true. `DISABLE_AUTO_COMPACT` turns automatic compaction off.
 
@@ -128,3 +138,7 @@ R is the residual context after a summary (46,000 in the baseline: system, proje
 - [Context window](https://code.claude.com/docs/en/context-window)
 - [Usage and length limits](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work)
 - [Agent SDK cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking)
+
+## Hidden compaction cost
+
+The summary request a compaction sends writes no assistant row in the session JSONL. Claude Code's `cost-state` row (`totalCostUSD`, `modelUsage`) includes it. In the live `LedgerKit v3.2` arms on Opus 5.5 with a 5-minute cache, `cost_state` minus the deduplicated assistant rows was $0.00 at the default (no compaction), $0.37 at 180k (2 compactions), $0.52 at 140k (4), $0.87 at the 250,000 window with 25 (6), and $1.01 at 100k (7): $0.08-$0.34 per compaction and 25.5% of the 100k bill. Any analysis that prices only assistant rows will flatter a low trigger. Claude Desktop writes no `cost-state` row at all, so a Desktop session's assistant-row total is a floor.
