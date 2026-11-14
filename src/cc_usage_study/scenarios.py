@@ -1,6 +1,9 @@
 """Named scenarios S1-S8. Numbers come from model.simulate, not from a table.
 
-Hi is the higher trigger (the before arm). Lo is the lower trigger.
+Hi is the higher trigger (the before arm). Lo is the lower trigger. Every
+trigger follows the Claude Code v2.1.325 formula in ``effective_trigger``:
+the 1M default fires at 967,000, a 25 percent override at 245,000, a
+250,000 window at 217,000, and a 200k model at 167,000.
 """
 
 from __future__ import annotations
@@ -29,10 +32,13 @@ def all_scenarios() -> list[Scenario]:
     idle_off = Assumptions(label="S4", long_gaps=gaps, idle_compaction=False)
     idle_on = Assumptions(label="S4b", long_gaps=gaps, idle_compaction=True)
     credits = Assumptions(label="S4c", ttl_min=5, gap_min=7)
-    small = Assumptions(label="S6", context_window=200_000, default_trigger=200_000)
+    # Idle compaction switched on but the laptop slept or the terminal closed,
+    # so the process was not alive to run it.
+    lapsed = Assumptions(label="S4d", long_gaps=gaps, idle_compaction=True, process_alive_through_gaps=False)
+    small = Assumptions(label="S6", context_window=200_000)
     rows: list[Scenario] = [
         Scenario("S1", replace(base, pct=0.25), base),
-        Scenario("S1b", replace(base, window=250_000, reserve=33_000), base),
+        Scenario("S1b", replace(base, window=250_000), base),
         Scenario("S1c", replace(marathon, pct=0.25), marathon),
         Scenario("S2", replace(short, pct=0.25), short),
         Scenario("S2b", replace(short, window=100_000), short),
@@ -45,6 +51,7 @@ def all_scenarios() -> list[Scenario]:
             Scenario("S4", replace(idle_off, pct=0.25), idle_off),
             Scenario("S4b", replace(idle_on, pct=0.25), idle_on),
             Scenario("S4c", replace(credits, pct=0.25), credits),
+            Scenario("S4d", replace(lapsed, pct=0.25), lapsed),
             Scenario("S6", replace(small, pct=0.25), small),
             Scenario("S6b", replace(small, window=100_000), small),
             Scenario("S7-0.1", replace(base, pct=0.25), base),
@@ -78,6 +85,10 @@ def run_scenario(scenario: Scenario) -> dict:
         "trigger_lo": lo.trigger_tokens,
         "compactions_hi": hi.compactions,
         "compactions_lo": lo.compactions,
+        "idle_compactions_hi": hi.idle_compactions,
+        "idle_compactions_lo": lo.idle_compactions,
+        "cold_rebuilds_hi": hi.cold_rebuilds,
+        "cold_rebuilds_lo": lo.cold_rebuilds,
         "warnings_lo": lo.warnings,
         "api_hi": hi.cost("api"),
         "api_lo": lo.cost("api"),

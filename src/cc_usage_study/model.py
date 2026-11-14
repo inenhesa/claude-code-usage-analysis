@@ -7,10 +7,11 @@ is written at the 5-minute cache-write rate. The main conversation uses the
 configured TTL (60 minutes inside a subscription plan, 5 minutes on usage
 credits or an API key).
 
-Nothing here is a measurement of an account. The about-967K default is the
-documentation's approximation for native 1M models. The 33,000-token reserve
-is a T3 Code source comment, not an Anthropic statement. Cache multipliers
-are published API list-price shapes, not subscription-meter weights.
+Nothing here is a measurement of an account. The trigger follows the
+Claude Code v2.1.325 binary (functions ``tle`` and ``WX``): window minus
+min(maxOutputTokens, 20000) minus a 13,000 buffer, which gives the
+documented about-967K on a 1M window. Cache multipliers are published API
+list-price shapes, not subscription-meter weights.
 """
 
 from __future__ import annotations
@@ -27,6 +28,14 @@ OFFICIAL_ABOUT_967K = 967_000
 T3_WINDOW_RESERVE_COMMENT = 33_000
 WINDOW_MIN = 100_000
 WINDOW_MAX = 1_000_000
+# Claude Code v2.1.325 binary: tle caps the output reserve at 20,000 and WX
+# keeps a 13,000-token buffer. Together they are the 33,000 T3's comment names.
+OUTPUT_RESERVE_CAP = 20_000
+SUMMARY_BUFFER = 13_000
+# Live Opus 5.5 runs, 13 November 2026: 19 compactions across 4 arms cost a
+# mean of about 36,600 cache-weighted units each (hidden cost_state residual
+# divided by compactions; phase means range about 19k to 85k).
+LIVE_MEAN_COMPACTION_UNITS = 36_600
 
 # Third-party client-side /usage attribution, not the server meter.
 # https://www.turboai.dev/blog/claude-code-limits-usage-breakdown-guide
@@ -52,10 +61,13 @@ class Assumptions:
     trigger, matching the docs.
 
     ``window`` is the absolute auto-compact window in tokens. None means unset.
-    ``reserve`` defaults to 0, so the trigger is the window itself. Pass
-    ``reserve=33000`` when modeling T3 Code's UI, which a source comment says
-    fires 33,000 tokens short of the window. That comment is not an Anthropic
-    spec, and it is not applied unless you set ``reserve``.
+    ``reserve`` is None by default, which applies the binary's own
+    min(max_output_tokens, 20000) reserve plus the 13,000 buffer (33,000 at
+    the default 128,000 max output). Pass an integer to override the whole
+    gap; ``reserve=0`` fires at the window itself.
+
+    ``process_alive_through_gaps`` is False when the laptop sleeps or the
+    terminal closes over a break. Idle compaction needs a live process.
 
     ``user_turns`` is how many times a person sends a message. Each user turn
     is ``calls_per_turn`` model requests (the tool loop). Those are not the
@@ -86,6 +98,8 @@ class Assumptions:
     ttl_min: float = 60.0
     idle_compaction: bool = True
     idle_min_tokens: int = 200_000
+    process_alive_through_gaps: bool = True
+    max_output_tokens: int = 128_000
     cache_read_multiplier: float = 0.1
     cache_write_1h: float = 2.0
     cache_write_5m: float = 1.25
@@ -114,39 +128,60 @@ class Assumptions:
             raise ValueError("ttl_min must be positive")
 
 
+def _output_reserve(assumptions: Assumptions) -> int:
+    """``min(maxOutputTokens, 20000)``, the output reserve in ``tle``."""
+    return min(assumptions.max_output_tokens, OUTPUT_RESERVE_CAP)
+
+
 def effective_trigger(assumptions: Assumptions) -> tuple[int, list[str]]:
-    """Return (trigger tokens, warnings).
+    """Return (trigger tokens, warnings), following Claude Code v2.1.325.
 
-    No window and no percentage: about 967K on a 1M context, otherwise the
-    context limit (or ``default_trigger`` when set).
+    The shipped binary computes the trigger in two functions:
 
-    Window only: the window minus ``reserve``. Reserve defaults to 0.
-    A T3 "Auto-compact after 250000" model sets ``reserve`` to 33,000 and
-    fires at 217,000.
+    - ``tle``: effective_window = window - min(maxOutputTokens, 20000)
+    - ``WX``:  threshold = effective_window - 13000, or with
+      CLAUDE_AUTOCOMPACT_PCT_OVERRIDE set,
+      min(floor(effective_window * pct), effective_window - 13000)
 
-    Percentage set: that fraction of the auto-compact window, and it cannot
-    raise the no-percentage trigger. A window plus a percentage compounds
-    and produces a warning. Reserve is not subtracted again after the
-    percentage. 250,000 with 25% is 62,500.
+    So with ``maxOutputTokens`` at 128,000 the default 1M window fires at
+    967,000, a 200k model at 167,000, ``--autocompact 180000`` at 147,000,
+    a 25 percent override on 1M at 245,000, and a 250,000 window stacked
+    with 25 percent at floor(230,000 x 0.25) = 57,500.
+
+    ``reserve`` overrides the whole 33,000 (output reserve plus buffer) when
+    set, without double subtraction. ``default_trigger`` pins the fire point
+    directly, which is how sweeps reach any value; it is a fire point, not
+    a setting you can type.
     """
     assumptions.validate()
     warnings: list[str] = []
     ctx = assumptions.context_window
-    reserve = 0 if assumptions.reserve is None else assumptions.reserve
     pct = assumptions.pct
     pct_active = pct is not None and pct < 1.0
+
+    def effective(window: int) -> int:
+        if assumptions.reserve is None:
+            return window - _output_reserve(assumptions)
+        return window - max(0, assumptions.reserve - SUMMARY_BUFFER)
+
+    def ceiling_of(window: int) -> int:
+        if assumptions.reserve is None:
+            return effective(window) - SUMMARY_BUFFER
+        return window - assumptions.reserve
+
+    def pct_of(window: int) -> int:
+        # Tiny epsilon so 0.18 * 980000 does not floor to 176399.
+        return math.floor(effective(window) * pct + 1e-6)
 
     if assumptions.window is None:
         if assumptions.default_trigger is not None:
             base = min(assumptions.default_trigger, ctx)
-        elif ctx >= 1_000_000:
-            base = min(OFFICIAL_ABOUT_967K, ctx)
-        else:
-            base = ctx
-        if assumptions.reserve is not None and not pct_active:
-            base = base - assumptions.reserve
+            if pct_active:
+                return max(1, min(base, int(ctx * pct))), warnings
+            return max(1, base), warnings
+        base = ceiling_of(ctx)
         if pct_active:
-            return max(1, min(base, int(ctx * pct))), warnings
+            return max(1, min(base, pct_of(ctx))), warnings
         return max(1, base), warnings
 
     window = min(max(assumptions.window, WINDOW_MIN), WINDOW_MAX, ctx)
@@ -155,18 +190,16 @@ def effective_trigger(assumptions: Assumptions) -> tuple[int, list[str]]:
             f"window clamped from {assumptions.window} to {window} "
             "(documented range 100000 to 1000000, capped at the model window)"
         )
+    ceiling = ceiling_of(window)
     if pct_active:
         warnings.append(
             "compounding: an absolute window and CLAUDE_AUTOCOMPACT_PCT_OVERRIDE "
-            "are both set. The percentage applies to the window. Reserve is not "
-            "subtracted again after the percentage. Whether production does "
-            "the same is unverified; check compactMetadata.preTokens."
+            "are both set. Claude Code v2.1.325 (tle + WX) applies the percentage "
+            "to window - min(maxOutputTokens, 20000), so 250000 with 25 fires at "
+            "floor(230000 x 0.25) = 57500. Check compactMetadata.preTokens."
         )
-        ceiling = max(1, window - reserve)
-        default_pct = ceiling / window
-        fraction = min(pct, default_pct)
-        return max(1, int(window * fraction)), warnings
-    return max(1, window - reserve), warnings
+        return max(1, min(ceiling, pct_of(window))), warnings
+    return max(1, ceiling), warnings
 
 
 def summary_size(assumptions: Assumptions, context_tokens: int) -> int:
@@ -199,6 +232,14 @@ def fixed_compaction_cost(assumptions: Assumptions) -> tuple[float, int]:
 
     K = 1.25 * instruction + 5 * summary_min + w * (R - system) + r * system.
     w is the main-conversation write multiplier for the configured TTL.
+
+    K is kept exactly equal to the overhead ``simulate`` charges per
+    ``compact()``, so the closed form and the trace never disagree. The
+    summary call alone (instruction, summary output, and reading the
+    context at the trigger) is ``summary_call_units``; at a 107k fire and
+    0.05x reads that is about 21.6k units, against a live Opus 5.5 mean of
+    about 36.6k (``LIVE_MEAN_COMPACTION_UNITS``). ``eoq_grid`` reports the
+    valley both ways.
     """
     summary = assumptions.summary_min
     reset = (
@@ -215,6 +256,15 @@ def fixed_compaction_cost(assumptions: Assumptions) -> tuple[float, int]:
         + assumptions.cache_read_multiplier * assumptions.system_prompt_tokens
     )
     return k, reset
+
+
+def summary_call_units(assumptions: Assumptions, trigger: int) -> float:
+    """Cache-weighted units of one modeled summary request fired at ``trigger``."""
+    return (
+        assumptions.cache_write_5m * assumptions.compact_instr
+        + assumptions.output_multiplier * assumptions.summary_min
+        + assumptions.cache_read_multiplier * trigger
+    )
 
 
 @dataclass(frozen=True)
@@ -254,7 +304,12 @@ class SimulationResult:
 
     @property
     def compactions(self) -> int:
+        """Threshold-triggered compactions only. Idle ones are separate."""
         return sum(1 for call in self.calls if call.kind == "compaction")
+
+    @property
+    def total_compactions(self) -> int:
+        return self.compactions + self.idle_compactions
 
     @property
     def productive_calls(self) -> int:
@@ -275,6 +330,7 @@ class SimulationResult:
             "rework_calls": self.rework_call_count,
             "compactions": self.compactions,
             "idle_compactions": self.idle_compactions,
+            "total_compactions": self.total_compactions,
             "cold_rebuilds": self.cold_rebuilds,
             "input_tokens": fresh,
             "cache_read_tokens": read,
@@ -397,7 +453,10 @@ def simulate(assumptions: Assumptions) -> SimulationResult:
     def compact(user_turn: int, *, idle: bool, with_rework: bool) -> None:
         nonlocal ctx, cached
         size = summary_size(assumptions, ctx)
-        emit("compaction", user_turn, assumptions.compact_instr, size, assumptions.cache_write_5m)
+        # An idle summary runs at about 90% of the 1-hour TTL (about 54 min),
+        # so it still reads the warm cache.
+        kind = "idle_compaction" if idle else "compaction"
+        emit(kind, user_turn, assumptions.compact_instr, size, assumptions.cache_write_5m)
         if idle:
             result.idle_compactions += 1
         ctx = (
@@ -407,6 +466,11 @@ def simulate(assumptions: Assumptions) -> SimulationResult:
             + assumptions.reinjected_tokens
         )
         cached = assumptions.system_prompt_tokens
+        if idle:
+            # The user returns after the TTL, so even the short prefix has
+            # expired. Any rework below starts cold.
+            cached = 0
+            result.cold_rebuilds += 1
         if not with_rework:
             return
         for _ in range(assumptions.rework_calls):
@@ -421,16 +485,17 @@ def simulate(assumptions: Assumptions) -> SimulationResult:
     for user_turn in range(assumptions.user_turns):
         gap = gaps.get(user_turn, assumptions.gap_min) if user_turn else 0.0
         if user_turn and gap > assumptions.ttl_min:
+            # Four conditions, all required (Claude Code v2.1.325):
+            # idleCompaction on, a live process through the gap, a 1-hour
+            # cache, and context at or above the idle minimum (200k default,
+            # CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS, floor 100k).
             if (
                 assumptions.idle_compaction
+                and assumptions.process_alive_through_gaps
                 and assumptions.ttl_min >= 60
                 and ctx >= assumptions.idle_min_tokens
             ):
                 compact(user_turn, idle=True, with_rework=True)
-                # The idle summary runs while the cache is still warm.
-                # The gap still exceeds the TTL, so the short prefix expires.
-                cached = 0
-                result.cold_rebuilds += 1
             else:
                 result.cold_rebuilds += 1
                 cached = 0
@@ -444,7 +509,7 @@ def simulate(assumptions: Assumptions) -> SimulationResult:
         for index in range(assumptions.calls_per_turn):
             maybe_compact(user_turn, assumptions.tail)
             emit("turn", user_turn, assumptions.tail, assumptions.output_per_call, main_write)
-    if result.compactions == 0:
+    if result.compactions == 0 and result.idle_compactions == 0:
         result.warnings.append("no_compaction: the session never reached the trigger")
     return result
 

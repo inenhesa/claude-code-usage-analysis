@@ -4,7 +4,8 @@ Two jobs live here.
 
 ``extract`` reads the raw Claude Code JSONL transcripts and the experiment
 workspaces once, and writes ``outputs/live_experiments.json``. The dataset
-holds numbers only: token counts, dollars, compaction metadata, tool and skill
+holds numbers only: token counts, cache-weighted units (with the logged
+list-price dollars kept as provenance), compaction metadata, tool and skill
 counts, test results. It never stores prompt text, tool output, API keys, or
 local paths. Each transcript is identified by its session id and a SHA-256 of
 the file, so a reader with the same files can confirm the provenance.
@@ -14,12 +15,13 @@ live charts under ``outputs/figures/``. It never touches a transcript, so
 anyone can regenerate the charts from the repository alone.
 
     python3 -m cc_usage_study.experiments figures --out outputs
-    python3 -m cc_usage_study.experiments extract --projects ~/.claude/projects --raw-root /tmp
+    python3 -m cc_usage_study.experiments extract --projects ~/.claude/projects --raw-root RAW_DIR
 
-Prices are the Opus 5.5 list prices from the 13 November 2026 snapshot in
-``pricing.py``. Every live run used a dedicated API key with the default
-5-minute prompt cache, so the dollars are API list price, not subscription
-meter percentages.
+Units are cache-weighted tokens: logged list price divided by the Opus 5.5
+input price, so input 1, 5-minute write 1.25, 1-hour write 2, read 0.05,
+output 5. ``normalize`` also re-weights the visible token buckets at 0.1x and
+0.025x reads. Every live run used a dedicated API key with the default
+5-minute prompt cache, so none of this is a subscription meter reading.
 """
 
 from __future__ import annotations
@@ -321,14 +323,17 @@ def _bughunt_verification(workspace: Path, hidden: Path, pytest: str) -> dict:
     decoy = "relayd/metrics.py"
     result = _run([pytest, "-q", "-p", "no:cacheprovider", "tests/visible", str(hidden)], workspace)
     counts = _pytest_counts(result)
+    hidden_counts = _pytest_counts(_run([pytest, "-q", "-p", "no:cacheprovider", str(hidden)], workspace))
     changed = subprocess.run(
         ["git", "diff", "--name-only", "HEAD"], cwd=workspace, capture_output=True, text=True
     ).stdout.split()
     return {
         "visible_and_hidden_tests": counts,
         "all_tests_passed": result.returncode == 0 and counts["failed"] == 0,
-        "hidden_bug_tests_passed": counts["passed"] - 1 if result.returncode == 0 else None,
-        "bugs_fixed": 3 if result.returncode == 0 else None,
+        "hidden_bug_tests_passed": hidden_counts["passed"],
+        # One hidden test per planted bug, so a passing hidden test is a fixed bug.
+        "bugs_fixed": hidden_counts["passed"] if hidden_counts["failed"] == 0 else None,
+        "bugs_fixed_basis": "count of passing hidden bug tests, one per planted bug",
         "files_changed": sorted(changed),
         "metrics_py_unmodified": _sha256(workspace / decoy) == manifest["files"][decoy],
     }
@@ -390,9 +395,9 @@ def extract_clients(projects: Path, raw_root: Path, repo_root: Path, pytest: str
         "sessions": sessions,
         "comparisons": comparisons,
         "notes": [
-            "CLI task_cli ran in the interactive TUI. Its cost_state ($%.4f) exceeds its deduped assistant rows ($%.4f): "
+            "CLI task_cli ran in the interactive TUI. Its cost_state exceeds its deduped assistant rows by %.1f%%: "
             "the TUI fires background calls (Haiku title plus an Opus side request) that write no assistant row."
-            % (cli_total, cli_main),
+            % ((cli_total / cli_main - 1) * 100),
             "T3 Code cost_state equals its assistant rows. Its separate title-generation sessions write no transcript.",
             "Claude Desktop writes no cost_state row. Its cost is computed from deduped assistant usage and is a floor.",
         ],
@@ -465,7 +470,7 @@ def extract_compaction(projects: Path, raw_root: Path, checker: Path, pytest: st
                     "assistant_usd": _r(assistant - prior_assistant),
                     "hidden_usd": _r(hidden),
                     "compactions": compacts,
-                    "hidden_usd_per_compaction": _r(hidden / compacts) if compacts else None,
+                    "hidden_phase_mean_usd": _r(hidden / compacts) if compacts else None,
                     "check_anomalies_reported": len(found),
                 }
             )
@@ -489,14 +494,6 @@ def extract_compaction(projects: Path, raw_root: Path, checker: Path, pytest: st
                 "compact_boundaries": boundaries,
                 "context_per_call": [call["context"] for call in calls],
                 "phases": phases,
-                "per_compaction_hidden_usd_range": (
-                    [
-                        min(p["hidden_usd_per_compaction"] for p in phases if p["compactions"]),
-                        max(p["hidden_usd_per_compaction"] for p in phases if p["compactions"]),
-                    ]
-                    if boundaries
-                    else None
-                ),
                 "hidden_share_of_total": _r(record["hidden_usd"] / record["cost_state_usd"], 4),
                 "check_anomalies_planted": len(anomalies),
                 "check_anomalies_found_phases_1_3": len(found_all),
@@ -619,7 +616,7 @@ def extract(projects: Path, raw_root: Path, repo_root: Path, checker: Path, pyte
         + short["totals"]["isolated_usd"]
         + short["totals"]["shared_usd"]
     )
-    return {
+    data = {
         "schema": 1,
         "date": "2026-11-13",
         "pricing_snapshot": SNAPSHOT_DATE,
@@ -649,20 +646,198 @@ def extract(projects: Path, raw_root: Path, repo_root: Path, checker: Path, pyte
         "compaction": compaction,
         "clear_vs_warm": short,
     }
+    return normalize(data)
+
+
+# ----------------------------------------------------------------------------- units
+
+READ_WEIGHTS = (0.1, 0.05, 0.025)
+GATE = 0.15  # protocol.md: the first preTokens must land within 15% of the trigger
+
+
+def _input_price() -> float:
+    return _PRICES[MODEL][0]
+
+
+def _units(usd: float | None) -> int | None:
+    """Dollars at Opus 5.5 list price back to cache-weighted units (input = 1)."""
+    if usd is None:
+        return None
+    return round(usd / _input_price() * 1_000_000)
+
+
+def weighted_units(tokens: dict, read_weight: float = 0.05) -> float:
+    """Cache-weighted units from token buckets: 1 / 1.25 / 2 / read / 5."""
+    return (
+        tokens["input"]
+        + tokens["cache_write_5m"] * 1.25
+        + tokens["cache_write_1h"] * 2.0
+        + tokens["cache_read"] * read_weight
+        + tokens["output"] * 5.0
+    )
+
+
+def _raw(tokens: dict) -> int:
+    return sum(tokens[key] for key in ("input", "cache_write_5m", "cache_write_1h", "cache_read", "output"))
+
+
+def _by_weight(tokens: dict) -> dict:
+    return {str(r): round(weighted_units(tokens, r), 1) for r in READ_WEIGHTS}
+
+
+def _session_units(record: dict) -> None:
+    record["raw_tokens"] = _raw(record["tokens"])
+    record["assistant_units"] = _units(record.get("assistant_usd"))
+    record["assistant_units_by_read_weight"] = _by_weight(record["tokens"])
+    if "cost_state_usd" in record:
+        record["cost_state_units"] = _units(record.get("cost_state_usd"))
+    if "hidden_usd" in record:
+        record["hidden_units"] = _units(record["hidden_usd"])
+    if "cost_usd" in record:
+        record["cost_units"] = _units(record["cost_usd"])
+
+
+def _pct(new: float, old: float) -> float:
+    return _r((new / old - 1) * 100, 2)
+
+
+def normalize(data: dict) -> dict:
+    """Add units, raw tokens, model-weight ranges, and validity flags. Idempotent.
+
+    Dollars stay in the JSON only as provenance (they are what Claude Code's
+    cost_state logged). Every user-facing number is derived from the units.
+    """
+    data["units"] = {
+        "name": "cache-weighted units",
+        "definition": "usd / input list price x 1e6, i.e. input 1, 5m write 1.25, 1h write 2, read 0.05, output 5",
+        "read_weight_sensitivity": list(READ_WEIGHTS),
+    }
+    clients = data["client_comparison"]
+    for record in clients["sessions"].values():
+        _session_units(record)
+        verification = record.get("verification")
+        if verification is not None:
+            verification.setdefault(
+                "bugs_fixed_basis",
+                "the 3 hidden bug tests passed (the combined visible + hidden run passed 4 tests, 1 of them visible)",
+            )
+    sessions = clients["sessions"]
+    main = sessions["task_cli"]["tokens"]
+    clients["comparisons"]["task_units_vs_cli_main_by_read_weight"] = {
+        str(r): {
+            key: _r(weighted_units(sessions[key]["tokens"], r) / weighted_units(main, r), 4)
+            for key in ("task_t3", "task_desktop")
+        }
+        for r in READ_WEIGHTS
+    }
+    clients["comparisons"]["task_raw_tokens_vs_cli_main"] = {
+        key: _r(_raw(sessions[key]["tokens"]) / _raw(main), 4) for key in ("task_t3", "task_desktop")
+    }
+    clients["comparisons"]["first_request_note"] = (
+        "Every first request read 63% to 68% of its prefix from a warm shared cache, so these are first-request "
+        "sizes, not true cold starts."
+    )
+    cli_side = sessions["task_cli"]
+    clients["notes"] = [
+        "CLI task_cli ran in the interactive TUI. Its cost_state exceeds its deduped assistant rows by "
+        f"{_pct(cli_side['cost_usd'], cli_side['assistant_usd']):.1f}%: the TUI fires background calls "
+        "(Haiku title plus an Opus side request) that write no assistant row.",
+        "T3 Code cost_state equals its assistant rows. Its separate title-generation sessions write no transcript.",
+        "Claude Desktop writes no cost_state row. Its usage is computed from deduped assistant rows and is a floor.",
+    ]
+
+    compaction = data["compaction"]
+    arms = compaction["arms"]
+    default_tokens = arms["default_1m"]["tokens"]
+    all_hidden = 0.0
+    all_compactions = 0
+    for record in arms.values():
+        _session_units(record)
+        for phase in record["phases"]:
+            if "hidden_usd_per_compaction" in phase:
+                phase["hidden_phase_mean_usd"] = phase.pop("hidden_usd_per_compaction")
+            phase["cost_state_units"] = _units(phase["cost_state_usd"])
+            phase["assistant_units"] = _units(phase["assistant_usd"])
+            phase["hidden_units"] = _units(phase["hidden_usd"])
+            mean = phase.get("hidden_phase_mean_usd")
+            phase["hidden_phase_mean_units"] = _units(mean) if mean is not None else None
+        record.pop("per_compaction_hidden_usd_range", None)
+        means = [p["hidden_phase_mean_usd"] for p in record["phases"] if p["compactions"]]
+        record["hidden_phase_mean_usd_range"] = [min(means), max(means)] if means else None
+        record["hidden_phase_mean_units_range"] = [_units(min(means)), _units(max(means))] if means else None
+        record["hidden_units_note"] = (
+            "Hidden usage is the cost_state residual over assistant rows. It has no token breakdown, so it is an "
+            "input-token equivalent, not a measured token count."
+        )
+        all_hidden += record["hidden_usd"]
+        all_compactions += record["compactions"]
+        boundaries = record["compact_boundaries"]
+        if boundaries:
+            first = boundaries[0]["preTokens"]
+            overshoot = (first - record["predicted_threshold"]) / record["predicted_threshold"]
+            record["first_fire_vs_threshold"] = _r(overshoot, 4)
+            record["validity_gate_passed"] = abs(overshoot) <= GATE
+        else:
+            record["first_fire_vs_threshold"] = None
+            record["validity_gate_passed"] = None
+        record["cost_vs_default_by_read_weight"] = {
+            str(r): _r(
+                (weighted_units(record["tokens"], r) + (record["hidden_units"] or 0))
+                / weighted_units(default_tokens, r)
+                - 1,
+                4,
+            )
+            for r in READ_WEIGHTS
+        }
+        record["raw_tokens_vs_default"] = _r(record["raw_tokens"] / _raw(default_tokens) - 1, 4)
+        checker = record["checker"]
+        checker.setdefault(
+            "semantic_violations_basis",
+            "0 means no module calls datetime.now() directly, zero functional failures, and the only checker hits "
+            "are INV-02 matches on the sanctioned clock.now() delegation",
+        )
+        record.setdefault(
+            "check_anomalies_basis",
+            "an anomaly counts as reported when its 4-digit id appears in assistant text, so this is an upper bound",
+        )
+    compaction["hidden_mean_units_per_compaction"] = round(_units(all_hidden) / all_compactions)
+    compaction["total_compactions"] = all_compactions
+    compaction["validity_gate"] = (
+        "first preTokens within 15% of the predicted threshold (benchmarks/protocol.md). "
+        "window_180k (+15.7%) and compound_25pct_250k (+55.5%) fail it."
+    )
+
+    short = data["clear_vs_warm"]
+    for record in list(short["isolated"].values()) + [short["shared"]]:
+        _session_units(record)
+    for turn in short["shared"]["turns"]:
+        turn["cost_units"] = _units(turn["cost_usd"])
+    totals = short["totals"]
+    totals["isolated_units"] = _units(totals["isolated_usd"])
+    totals["shared_units"] = _units(totals["shared_usd"])
+    totals["isolated_raw_tokens"] = _raw(totals["isolated_tokens"])
+    totals["shared_raw_tokens"] = _raw(totals["shared_tokens"])
+    totals["shared_raw_tokens_change_pct"] = _pct(totals["shared_raw_tokens"], totals["isolated_raw_tokens"])
+    totals["shared_change_pct_by_read_weight"] = {
+        str(r): _pct(weighted_units(totals["shared_tokens"], r), weighted_units(totals["isolated_tokens"], r))
+        for r in READ_WEIGHTS
+    }
+    totals["saved_write_tokens_per_avoided_clear"] = (
+        totals["isolated_tokens"]["cache_write_5m"] - totals["shared_tokens"]["cache_write_5m"]
+    ) / 2
+    return data
 
 
 # ----------------------------------------------------------------------------- figures
 
+# Two hues only, plus neutral ink and greys. Series differ by alpha or hatch.
 GREEN = "#1a7f37"
-GREEN_LIGHT = "#2da44e"
 RED = "#cf222e"
-RED_DARK = "#a40e26"
-RED_LIGHT = "#fa4549"
-RED_SOFT = "#ff8182"
 INK = "#1f2328"
 MUTED = "#59636e"
 GRID = "#eaeef2"
 AXIS = "#d0d7de"
+FOOTER = "Weights 1 / 1.25 / 0.05 / 5 (Opus 5.5). Range across models in README."
 
 
 def _style(plt) -> None:
@@ -706,27 +881,44 @@ def _k(value: float) -> str:
     return f"{value / 1000:.0f}k"
 
 
+def _change_text(change_pct: float) -> str:
+    """+14%, +18%, but one decimal where whole-number rounding would be ambiguous (+25.2%)."""
+    text = f"{change_pct:+.0f}%"
+    if abs(change_pct - round(change_pct)) > 0.05 and round(abs(change_pct)) == 25:
+        text = f"{change_pct:+.1f}%"
+    return text
+
+
 def figure_clients(data: dict, path: Path, plt) -> None:
     sessions = data["client_comparison"]["sessions"]
-    fig, (left, right) = plt.subplots(1, 2, figsize=(17.5, 6.8), gridspec_kw={"wspace": 0.62})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(16, 6.4), gridspec_kw={"wspace": 0.55})
 
-    cold = ["cold_cli_p", "cold_cli_tui", "cold_t3", "cold_desktop"]
+    first = ["cold_cli_p", "cold_cli_tui", "cold_t3", "cold_desktop"]
     names = [
         f"Claude CLI v{CLI_VERSION}\nclaude -p",
         f"Claude CLI v{CLI_VERSION}\ninteractive",
         f"T3 Code v{T3_VERSION}",
         f"Claude Desktop v{DESKTOP_VERSION}\nCode tab",
     ]
-    colors = [GREEN, GREEN_LIGHT, RED_LIGHT, RED_DARK]
-    values = [sessions[key]["first_call_prefix_tokens"] for key in cold]
+    styles = [
+        {"color": GREEN, "alpha": 1.0, "hatch": None},
+        {"color": GREEN, "alpha": 1.0, "hatch": "////"},
+        {"color": RED, "alpha": 0.6, "hatch": None},
+        {"color": RED, "alpha": 1.0, "hatch": None},
+    ]
+    values = [sessions[key]["first_call_prefix_tokens"] for key in first]
     tui = sessions["cold_cli_tui"]["first_call_prefix_tokens"]
-    positions = range(len(cold))
-    left.barh(list(positions), values, color=colors, height=0.6, zorder=3)
+    for index, (value, style) in enumerate(zip(values, styles)):
+        if style["hatch"]:
+            left.barh(index, value, color="white", edgecolor=style["color"], hatch=style["hatch"], linewidth=1.4,
+                      height=0.6, zorder=3)
+        else:
+            left.barh(index, value, color=style["color"], alpha=style["alpha"], height=0.6, zorder=3)
     left.invert_yaxis()
-    left.set_yticks(list(positions))
+    left.set_yticks(range(len(first)))
     left.set_yticklabels(names)
     _clean(left)
-    for index, key in enumerate(cold):
+    for index, key in enumerate(first):
         value = values[index]
         startup = sessions[key]["startup"]
         ratio = value / tui
@@ -736,65 +928,57 @@ def figure_clients(data: dict, path: Path, plt) -> None:
             tag = f"{(ratio - 1) * 100:+.0f}%"
         else:
             tag = f"{ratio:.2f}x"
-        left.text(value + 900, index - 0.12, f"{value:,} tokens  ({tag})", va="center", ha="left",
-                  fontsize=11.5, color=colors[index], fontweight="bold")
-        left.text(
-            value + 900,
-            index + 0.2,
-            f"{startup['inline_tools']} inline / {startup['deferred_tools']} deferred tools, "
-            f"${sessions[key]['cost_usd']:.4f} cold",
-            va="center",
-            ha="left",
-            fontsize=10,
-            color=MUTED,
-        )
-    left.set_xlim(0, max(values) * 1.95)
+        left.text(value + 700, index - 0.13, f"{value:,} tokens ({tag})", va="center", ha="left",
+                  fontsize=11.5, color=styles[index]["color"], fontweight="bold")
+        left.text(value + 700, index + 0.2,
+                  f"{startup['inline_tools']} inline / {startup['deferred_tools']} deferred tools",
+                  va="center", ha="left", fontsize=10, color=MUTED)
+    left.set_xlim(0, max(values) * 1.55)
     left.xaxis.set_major_formatter(lambda v, _p: _k(v))
     left.set_xlabel("Tokens in the first request (input + cache write + cache read)", labelpad=8)
-    left.set_title("Cold start: what each client sends before you type", loc="left", pad=12)
+    left.set_title("First request size", loc="left", pad=12)
 
     task = ["task_cli", "task_t3", "task_desktop"]
-    labels = [f"Claude CLI v{CLI_VERSION}", f"T3 Code v{T3_VERSION}", f"Claude Desktop v{DESKTOP_VERSION}"]
-    task_colors = [GREEN, RED_LIGHT, RED_DARK]
-    main = sessions["task_cli"]["assistant_usd"]
-    costs = [sessions["task_cli"]["assistant_usd"], sessions["task_t3"]["cost_usd"], sessions["task_desktop"]["cost_usd"]]
-    right.barh(range(3), costs, color=task_colors, height=0.6, zorder=3)
-    extra = sessions["task_cli"]["cost_usd"] - main
-    right.barh([0], [extra], left=[main], color="white", edgecolor=GREEN, hatch="////", height=0.6, zorder=3,
-               linewidth=1.0)
+    labels = [f"Claude CLI v{CLI_VERSION}", f"T3 Code v{T3_VERSION}", f"Claude Desktop v{DESKTOP_VERSION}\nCode tab"]
+    task_styles = [styles[0], styles[2], styles[3]]
+    main_units = sessions["task_cli"]["assistant_usd"]
+    usage = [sessions["task_cli"]["assistant_usd"], sessions["task_t3"]["cost_usd"], sessions["task_desktop"]["cost_usd"]]
+    relative = [value / main_units for value in usage]
+    raw_main = _raw(sessions["task_cli"]["tokens"])
+    for index, (value, style) in enumerate(zip(relative, task_styles)):
+        right.barh(index, value, color=style["color"], alpha=style["alpha"], height=0.6, zorder=3)
     right.invert_yaxis()
     right.set_yticks(range(3))
     right.set_yticklabels(labels)
     _clean(right)
     for index, key in enumerate(task):
         record = sessions[key]
-        cost = costs[index]
-        if index == 0:
-            head = f"${cost:.4f} main  (${record['cost_usd']:.4f} with side calls)"
-            end = record["cost_usd"]
-        else:
-            ratio = cost / main
-            tag = f"{(ratio - 1) * 100:+.0f}%" if ratio < 1.5 else f"{ratio:.2f}x"
-            head = f"${cost:.4f}  ({tag})"
-            end = cost
-        right.text(end + 0.003, index - 0.12, head, va="center", ha="left", fontsize=11.5,
-                   color=task_colors[index], fontweight="bold")
-        right.text(
-            end + 0.003,
-            index + 0.2,
-            f"{record['assistant_calls']} calls, {record['tokens']['cache_read'] / 1000:.0f}k cache-read tokens, tests pass",
-            va="center",
-            ha="left",
-            fontsize=10,
-            color=MUTED,
+        head = "1.00x (baseline)" if index == 0 else f"{relative[index]:.2f}x ({(relative[index] - 1) * 100:+.0f}%)"
+        raw_ratio = _raw(record["tokens"]) / raw_main
+        calls = record["assistant_calls"]
+        detail = (
+            f"{calls} calls, tests pass" if index == 0
+            else f"{raw_ratio:.2f}x raw tokens, {calls} calls vs {sessions['task_cli']['assistant_calls']}"
         )
-    right.set_xlim(0, max(costs) * 2.1)
-    right.xaxis.set_major_formatter(lambda v, _p: f"${v:.2f}")
-    right.set_xlabel("API list price of the same 3-bug fix (noisy_bughunt)", labelpad=8)
+        right.text(relative[index] + 0.03, index - 0.13, head, va="center", ha="left", fontsize=11.5,
+                   color=task_styles[index]["color"], fontweight="bold")
+        right.text(relative[index] + 0.03, index + 0.2, detail, va="center", ha="left", fontsize=10, color=MUTED)
+    right.axvline(1.0, color=INK, linewidth=1.0, linestyle=(0, (3, 3)), zorder=4)
+    right.set_xlim(0, max(relative) * 1.32)
+    right.xaxis.set_major_formatter(lambda v, _p: f"{v:.1f}x")
+    right.set_xlabel("Usage of the same 3-bug fix, x CLI (cache-weighted)", labelpad=8)
     right.set_title("Same bugfix, same model, three clients", loc="left", pad=12)
+    side = (sessions["task_cli"]["cost_usd"] / main_units - 1) * 100
     fig.suptitle(
-        "Claude Opus 5.5, effort medium, identical CLAUDE.md, no user MCP servers. Measured 13 November 2026.",
-        x=0.06, y=0.995, ha="left", fontsize=11, color=MUTED,
+        "Claude Opus 5.5, effort medium, identical CLAUDE.md, no user MCP servers. Measured 13 November 2026, n=1 each.",
+        x=0.06, y=1.0, ha="left", fontsize=11, color=MUTED,
+    )
+    fig.text(
+        0.06, -0.04,
+        f"CLI baseline is its main assistant rows; its TUI also fired side calls worth +{side:.0f}% (Haiku title, "
+        "Opus side request).\nDesktop writes no cost_state, so its figure is a floor. "
+        "First requests read 63-68% of the prefix warm. " + FOOTER,
+        ha="left", va="top", fontsize=9.5, color=MUTED, linespacing=1.4,
     )
     _save(fig, path, plt)
 
@@ -804,164 +988,190 @@ def figure_compaction(data: dict, path: Path, plt) -> None:
     order = ["default_1m", "window_180k", "compound_25pct_250k", "window_140k", "window_100k"]
     labels = {
         "default_1m": "Default 1M",
-        "window_180k": "180k window",
-        "compound_25pct_250k": "250k + 0.25 override",
-        "window_140k": "140k window",
-        "window_100k": "100k window",
+        "window_180k": "--autocompact 180k",
+        "compound_25pct_250k": "250k window\n+ override 25",
+        "window_140k": "--autocompact 140k",
+        "window_100k": "--autocompact 100k",
     }
-    fig, (left, right) = plt.subplots(1, 2, figsize=(17, 7.2), gridspec_kw={"wspace": 0.3, "width_ratios": [1.1, 1]})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(16.5, 7.0), gridspec_kw={"wspace": 0.28, "width_ratios": [1.1, 1]})
 
-    visible = [arms[k]["assistant_usd"] for k in order]
-    hidden = [arms[k]["hidden_usd"] for k in order]
-    totals = [arms[k]["cost_state_usd"] for k in order]
-    rows = range(len(order))
-    left.barh(list(rows), visible, color=GREEN, height=0.6, zorder=3, label="Visible assistant calls")
-    left.barh(list(rows), hidden, left=visible, color=RED, height=0.6, zorder=3,
-              label="Hidden compaction-summary calls")
+    base = arms["default_1m"]["cost_state_usd"]
+    visible = [arms[k]["assistant_usd"] / base * 100 for k in order]
+    hidden = [arms[k]["hidden_usd"] / base * 100 for k in order]
+    totals = [arms[k]["cost_state_usd"] / base * 100 for k in order]
+    rows = list(range(len(order)))
+    left.barh(rows, visible, color=GREEN, height=0.6, zorder=3, label="visible in the transcript")
+    left.barh(rows, hidden, left=visible, color=RED, height=0.6, zorder=3, label="hidden summary calls")
     left.invert_yaxis()
-    left.set_yticks(list(rows))
+    left.set_yticks(rows)
     left.set_yticklabels([labels[k] for k in order])
     _clean(left)
-    base = arms["default_1m"]["cost_state_usd"]
-    left.axvline(base, color=INK, linestyle=(0, (3, 3)), linewidth=1.0, zorder=4)
-    left.text(base, -0.62, f"default ${base:.2f}", ha="center", va="bottom", fontsize=10, color=INK)
+    left.axvline(100, color=INK, linestyle=(0, (3, 3)), linewidth=1.0, zorder=4)
+    left.text(100, -0.62, "default = 100", ha="center", va="bottom", fontsize=10, color=INK)
     for index, key in enumerate(order):
         record = arms[key]
         change = record["cost_vs_default"] * 100
-        change_text = "baseline" if key == "default_1m" else ("break-even" if abs(change) < 1 else f"{change:+.0f}%")
-        color = GREEN if change < 1 else RED
-        left.text(totals[index] + 0.06, index - 0.13, f"${totals[index]:.2f}  ({change_text})", va="center",
-                  ha="left", fontsize=11.5, color=color, fontweight="bold")
+        if key == "default_1m":
+            head, color = "100 (baseline)", GREEN
+        elif abs(change) < 1:
+            head, color = "100 (tie)", GREEN
+        else:
+            head, color = _change_text(change), RED
+        left.text(totals[index] + 1.5, index - 0.13, head, va="center", ha="left", fontsize=11.5, color=color,
+                  fontweight="bold")
         if record["compactions"]:
-            detail = (
-                f"{record['compactions']} compacts, ${record['hidden_usd']:.2f} hidden "
-                f"({record['hidden_share_of_total'] * 100:.1f}%)"
-            )
+            detail = f"{record['compactions']} compacts, {record['hidden_share_of_total'] * 100:.1f}% hidden summary usage"
+            if record.get("validity_gate_passed") is False:
+                detail += "\nfirst fire failed the 15% preTokens gate"
         else:
             detail = f"0 compacts, peak {_k(record['peak_context_tokens'])} context"
-        left.text(totals[index] + 0.06, index + 0.21, detail, va="center", ha="left", fontsize=10, color=MUTED)
-    left.set_xlim(0, max(totals) * 1.62)
-    left.xaxis.set_major_formatter(lambda v, _p: f"${v:.0f}")
-    left.set_xlabel("API list price of one 4-phase LedgerKit v3.2 build", labelpad=8)
-    left.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.45, -0.13), ncol=2, fontsize=10.5)
-    left.set_title("A lower trigger adds a bill you never see in the transcript", loc="left", pad=22)
+        left.text(totals[index] + 1.5, index + 0.24, detail, va="center", ha="left", fontsize=9.8, color=MUTED,
+                  linespacing=1.1)
+    left.set_ylim(len(order) - 0.45, -0.85)
+    left.set_xlim(0, 196)
+    left.set_xticks([0, 25, 50, 75, 100, 125])
+    left.set_xlabel("Usage of one 4-phase build, default = 100 (cache-weighted)", labelpad=8)
+    left.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.4, -0.12), ncol=2, fontsize=10.5)
+    left.set_title("A lower trigger adds usage you never see in the transcript", loc="left", pad=18)
 
     fire = ["window_180k", "window_140k", "window_100k", "compound_25pct_250k"]
-    fire_labels = ["180k window", "140k window", "100k window", "250k window\n+ 0.25 override"]
+    fire_labels = ["180k window", "140k window", "100k window", "250k window\n+ override 25"]
     step = 1.7
     for index, key in enumerate(fire):
         x = index * step
         record = arms[key]
-        nominal = record["window"] if record["pct_override"] is None else int(record["window"] * record["pct_override"] / 100)
+        stacked = record["pct_override"] is not None
+        nominal = record["window"] if not stacked else int(record["window"] * record["pct_override"] / 100)
         threshold = record["predicted_threshold"]
-        right.plot([x - 0.36, x + 0.36], [nominal, nominal], color=RED_SOFT, linewidth=2.2,
+        right.plot([x - 0.36, x + 0.36], [nominal, nominal], color=RED, alpha=0.5, linewidth=2.2,
                    linestyle=(0, (4, 3)), zorder=2)
         right.plot([x - 0.36, x + 0.36], [threshold, threshold], color=GREEN, linewidth=3.2, zorder=3)
         observed = [b["preTokens"] for b in record["compact_boundaries"]]
         spread = [x - 0.24 + 0.48 * i / max(1, len(observed) - 1) for i in range(len(observed))]
         right.scatter(spread, observed, color=RED, s=46, zorder=4, edgecolor="white", linewidth=0.8)
-        if record["pct_override"] is None:
-            nominal_text = f"you set {_k(nominal)}"
-        else:
-            nominal_text = f"naive 0.25 x 250k\n= {nominal / 1000:.1f}k"
-        stacked = record["pct_override"] is not None
-        right.text(x + 0.45, nominal + (6500 if stacked else 0), nominal_text, va="center", ha="left",
+        if record.get("validity_gate_passed") is False:
+            right.scatter([spread[0]], [observed[0]], facecolor="none", edgecolor=INK, s=150, linewidth=1.2, zorder=5)
+        nominal_text = f"typed {_k(nominal)}" if not stacked else f"naive 0.25 x 250k\n= {nominal / 1000:.1f}k"
+        right.text(x + 0.45, nominal + (7000 if stacked else 0), nominal_text, va="center", ha="left",
                    fontsize=9.5, color=RED)
-        right.text(x + 0.45, threshold - (9000 if stacked else 0),
-                   f"fires at\n{threshold / 1000:.1f}k", va="center", ha="left",
-                   fontsize=9.5, color=GREEN, fontweight="bold")
+        right.text(x + 0.45, threshold - (9000 if stacked else 0), f"trips at\n{threshold / 1000:.1f}k",
+                   va="center", ha="left", fontsize=9.5, color=GREEN, fontweight="bold")
+        if stacked:
+            worst = max(range(len(observed)), key=lambda i: observed[i])
+            over = observed[worst] - threshold
+            right.annotate(f"+{over / 1000:.0f}k past the line\nafter a big tool batch",
+                           xy=(spread[worst], observed[worst]),
+                           xytext=(14, 34), textcoords="offset points", fontsize=9.5, color=RED, ha="left",
+                           arrowprops={"arrowstyle": "-", "color": RED, "linewidth": 0.9})
     right.set_xticks([i * step for i in range(len(fire))])
     right.set_xticklabels(fire_labels)
-    right.set_xlim(-0.6, (len(fire) - 1) * step + 1.25)
+    right.set_xlim(-0.6, (len(fire) - 1) * step + 1.45)
     right.set_ylim(40_000, 195_000)
     right.yaxis.set_major_formatter(lambda v, _p: _k(v))
     right.set_ylabel("Context tokens at compaction (preTokens)", labelpad=8)
     _clean(right, grid_axis="y")
-    right.scatter([], [], color=RED, s=40, label="observed fire (each compaction)")
-    right.plot([], [], color=GREEN, linewidth=3, label="predicted by tle + WX in v2.1.325")
-    right.plot([], [], color=RED_SOFT, linewidth=2.2, linestyle=(0, (4, 3)), label="the number you typed")
+    right.scatter([], [], color=RED, s=40, label="observed fire")
+    right.scatter([], [], facecolor="none", edgecolor=INK, s=110, label="first fire >15% past the line")
+    right.plot([], [], color=GREEN, linewidth=3, label="where the check trips (tle + WX)")
+    right.plot([], [], color=RED, alpha=0.5, linewidth=2.2, linestyle=(0, (4, 3)), label="the number you typed")
     right.legend(frameon=False, loc="upper right", fontsize=10)
-    right.set_title("It fires 33,000 tokens early, and stacked knobs multiply", loc="left", pad=22)
+    right.set_title("The check trips 33,000 below what you typed.\nBig tool batches overshoot it.", loc="left", pad=12)
     fig.suptitle(
-        "5 live Opus 5.5 sessions, effort medium, 5-minute cache, 13 November 2026. "
+        "5 live Opus 5.5 sessions, effort medium, 5-minute cache, no pauses, n=1 each, 13 November 2026. "
         "Every arm found 12/12 planted anomalies and passed its tests.",
-        x=0.06, y=1.0, ha="left", fontsize=11, color=MUTED,
+        x=0.06, y=1.02, ha="left", fontsize=11, color=MUTED,
     )
+    fig.text(0.06, -0.05, "Hidden usage is the cost_state residual over the transcript rows. " + FOOTER,
+             ha="left", va="top", fontsize=9.5, color=MUTED)
     _save(fig, path, plt)
 
 
 def figure_clear_vs_warm(data: dict, path: Path, plt) -> None:
+    """Three /clear sessions vs one warm session.
+
+    If ``data["ttl_runs"]["stale_bar"]`` exists (``{"label": ..., "pct_of_clear": ...}``),
+    a third hatched red bar is drawn for the stale resume measured live.
+    """
     short = data["clear_vs_warm"]
     totals = short["totals"]
-    fig, (left, right) = plt.subplots(1, 2, figsize=(15, 6.2), gridspec_kw={"wspace": 0.32})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(15, 6.2), gridspec_kw={"wspace": 0.3})
 
-    iso_parts = [short["isolated"][task]["cost_state_usd"] for task in SHORT_TASKS]
-    warm_parts = [turn["cost_usd"] for turn in short["shared"]["turns"]]
-    bars = [("3 sessions with\n/clear between", iso_parts, RED), ("1 warm session,\n--resume", warm_parts, GREEN)]
+    iso_total = totals["isolated_usd"]
+    iso_parts = [short["isolated"][task]["cost_state_usd"] / iso_total * 100 for task in SHORT_TASKS]
+    warm_parts = [turn["cost_usd"] / iso_total * 100 for turn in short["shared"]["turns"]]
+    bars = [("3 sessions,\n/clear between", iso_parts, RED), ("1 warm session,\n--resume", warm_parts, GREEN)]
+    stale = (data.get("ttl_runs") or {}).get("stale_bar")
+    scale_top = max([100.0] + ([stale["pct_of_clear"]] if stale else []))
     for index, (_label, parts, color) in enumerate(bars):
         start = 0.0
         for task, part in zip(SHORT_TASKS, parts):
             left.bar(index, part, bottom=start, color=color, width=0.55, edgecolor="white", linewidth=2, zorder=3)
-            left.text(index, start + part / 2, f"{task}\n${part:.4f}", ha="center", va="center", fontsize=9.5,
-                      color="white")
+            units = part / 100 * _units(iso_total)
+            if part / scale_top < 0.12:
+                start += part
+                continue
+            left.text(index, start + part / 2, f"{task}\n{units / 1000:.1f}k units", ha="center", va="center",
+                      fontsize=9.5, color="white")
             start += part
-    left.text(0, totals["isolated_usd"] + 0.003, f"${totals['isolated_usd']:.4f}", ha="center", va="bottom",
-              fontsize=13, color=RED, fontweight="bold")
-    left.text(1, totals["shared_usd"] + 0.003,
-              f"${totals['shared_usd']:.4f}  (-{totals['shared_saving_pct']:.1f}%)", ha="center", va="bottom",
+    warm_pct = totals["shared_usd"] / iso_total * 100
+    left.text(0, 101.5, "100%", ha="center", va="bottom", fontsize=13, color=RED, fontweight="bold")
+    left.text(1, warm_pct + 1.5, f"{warm_pct:.1f}% ({warm_pct - 100:+.1f}%)", ha="center", va="bottom",
               fontsize=13, color=GREEN, fontweight="bold")
-    left.set_xticks([0, 1])
-    left.set_xticklabels([label for label, _p, _c in bars])
-    left.set_xlim(-0.6, 1.6)
-    left.set_ylim(0, totals["isolated_usd"] * 1.22)
-    from matplotlib.ticker import MultipleLocator
-
-    left.yaxis.set_major_locator(MultipleLocator(0.02))
-    left.yaxis.set_major_formatter(lambda v, _p: f"${v:.2f}")
-    left.set_ylabel("API list price, three quick bugfixes", labelpad=8)
+    ticks = [label for label, _p, _c in bars]
+    if stale:
+        pct = stale["pct_of_clear"]
+        left.bar(2, pct, color="white", edgecolor=RED, hatch="////", linewidth=1.4, width=0.55, zorder=3)
+        left.text(2, pct + 1.5, f"{pct:.0f}% ({pct - 100:+.0f}%)", ha="center", va="bottom", fontsize=13,
+                  color=RED, fontweight="bold")
+        ticks.append(stale.get("label", "resumed after 6.5m"))
+    left.set_xticks(range(len(ticks)))
+    left.set_xticklabels(ticks)
+    left.set_xlim(-0.6, len(ticks) - 0.4)
+    top = max([100.0] + ([stale["pct_of_clear"]] if stale else []))
+    left.set_ylim(0, top * 1.16)
+    left.yaxis.set_major_formatter(lambda v, _p: f"{v:.0f}%")
+    left.set_ylabel("Usage, % of the /clear arm (cache-weighted)", labelpad=8)
     _clean(left, grid_axis="y")
-    left.set_title("Back-to-back fixes: the warm session wins", loc="left", pad=12)
+    left.set_title("Warm session wins; a stale resume loses big" if stale else "Back-to-back fixes: the warm session wins",
+                   loc="left", pad=12)
 
-    keys = [("cache_write_usd", "Cache writes\n$5.00 / M tokens"), ("cache_read_usd", "Cache reads\n$0.20 / M tokens"),
-            ("output_usd", "Output\n$20 / M tokens")]
-    iso = totals["isolated_dollars"]
-    warm = totals["shared_dollars"]
+    keys = [("cache_write_5m", "writes\n1.25x"), ("cache_read", "reads\n0.05x"), ("output", "output\n5x")]
+    iso = totals["isolated_tokens"]
+    warm = totals["shared_tokens"]
     width = 0.36
-    for index, (key, label) in enumerate(keys):
+    for index, (key, _label) in enumerate(keys):
         right.bar(index - width / 2, iso[key], width=width, color=RED, zorder=3)
         right.bar(index + width / 2, warm[key], width=width, color=GREEN, zorder=3)
-        right.text(index - width / 2, iso[key] + 0.0012, f"${iso[key]:.4f}", ha="center", va="bottom", fontsize=9.5,
+        right.text(index - width / 2, iso[key] * 1.12, f"{iso[key]:,}", ha="center", va="bottom", fontsize=10,
                    color=RED)
-        right.text(index + width / 2, warm[key] + 0.0012, f"${warm[key]:.4f}", ha="center", va="bottom",
-                   fontsize=9.5, color=GREEN)
+        right.text(index + width / 2, warm[key] * 1.12, f"{warm[key]:,}", ha="center", va="bottom", fontsize=10,
+                   color=GREEN)
+    right.set_yscale("log")
+    right.set_ylim(300, max(iso["cache_read"], warm["cache_read"]) * 4)
     right.set_xticks(range(len(keys)))
-    right.set_xticklabels([label for _k2, label in keys])
-    right.set_ylim(0, iso["cache_write_usd"] * 1.35)
-    right.yaxis.set_major_formatter(lambda v, _p: f"${v:.2f}")
+    right.set_xticklabels(
+        [f"{label}\nwarm {(warm[key] / iso[key] - 1) * 100:+.0f}%" for key, label in keys]
+    )
+    right.yaxis.set_major_formatter(lambda v, _p: _k(v) if v >= 1000 else f"{v:.0f}")
+    right.set_ylabel("Raw tokens (log scale)", labelpad=8)
     _clean(right, grid_axis="y")
     from matplotlib.patches import Patch
 
-    right.legend(
-        handles=[Patch(color=RED, label="/clear between tasks"), Patch(color=GREEN, label="warm session")],
-        frameon=False,
-        loc="upper right",
-    )
-    ratio = totals["cache_write_ratio"]
-    right.text(
-        0.3,
-        iso["cache_write_usd"] * 0.92,
-        f"/clear rebuilds the prefix every time:\n{totals['isolated_tokens']['cache_write_5m']:,} vs "
-        f"{totals['shared_tokens']['cache_write_5m']:,} cache-write tokens ({ratio:.1f}x).\nThe warm session pays a little more\nfor reads and output, and still wins.",
-        ha="left",
-        va="center",
-        fontsize=10.5,
-        color=INK,
-    )
-    right.set_title("Where the dollars go", loc="left", pad=12)
+    right.legend(handles=[Patch(color=RED, label="/clear between tasks"), Patch(color=GREEN, label="warm session")],
+                 frameon=False, loc="upper left", ncol=2)
+    right.set_title("More tokens read, far fewer rebuilt", loc="left", pad=12)
+    by_weight = totals["shared_change_pct_by_read_weight"]
     fig.suptitle(
-        "median_bug, slice_bug, keep_currency on Claude Opus 5.5, effort medium, 5-minute cache. "
-        "All tests pass in both arms. Uncached input is $0.0001 in each arm.",
+        "median_bug, slice_bug, keep_currency on Claude Opus 5.5, effort medium, 5-minute cache, n=1. "
+        "All tests pass in both arms.",
         x=0.06, y=1.0, ha="left", fontsize=11, color=MUTED,
+    )
+    fig.text(
+        0.06, -0.03,
+        f"The warm arm used {totals['shared_raw_tokens_change_pct']:+.1f}% raw tokens and "
+        f"{by_weight['0.05']:+.1f}% usage ({by_weight['0.1']:+.1f}% at 0.1x reads, {by_weight['0.025']:+.1f}% at 0.025x). "
+        f"Context peaked at {short['shared']['peak_context_tokens']:,} tokens. " + FOOTER,
+        ha="left", va="top", fontsize=9.5, color=MUTED,
     )
     _save(fig, path, plt)
 
@@ -972,6 +1182,7 @@ def write_figures(data: dict, out: Path) -> list[Path]:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    data = normalize(json.loads(json.dumps(data)))
     _style(plt)
     figures = out / "figures"
     figures.mkdir(parents=True, exist_ok=True)
@@ -989,7 +1200,7 @@ def load(path: Path) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Live Opus 5.5 experiments: dataset and charts.")
     sub = parser.add_subparsers(dest="command")
-    fig = sub.add_parser("figures", help="draw the three live charts from the committed JSON")
+    fig = sub.add_parser("figures", help="normalize the committed JSON and draw the three live charts")
     fig.add_argument("--out", type=Path, default=Path("outputs"))
     ext = sub.add_parser("extract", help="rebuild the JSON from raw transcripts (needs the original files)")
     ext.add_argument("--projects", type=Path, default=Path.home() / ".claude" / "projects")
@@ -1003,9 +1214,16 @@ def main(argv: list[str] | None = None) -> int:
         repo_root = Path(__file__).resolve().parents[2]
         data = extract(args.projects, args.raw_root, repo_root, args.checker, args.pytest)
         out.mkdir(parents=True, exist_ok=True)
+        previous = out / DATASET_NAME
+        if previous.is_file() and "ttl_runs" not in data:
+            # The cache-expiry runs come from a separate runner; keep them across a rebuild.
+            kept = load(previous).get("ttl_runs")
+            if kept:
+                data["ttl_runs"] = kept
         (out / DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote {out / DATASET_NAME}")
-    data = load(out / DATASET_NAME)
+    data = normalize(load(out / DATASET_NAME))
+    (out / DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     for path in write_figures(data, out):
         print(f"Wrote {path}")
     return 0

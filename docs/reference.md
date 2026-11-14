@@ -19,9 +19,7 @@ The environment variable outranks the flag, and the flag outranks the setting. S
 
 `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=100` does not delay compaction. A "95 percent" arm can be identical to the default. The docs do not publish a default percentage. The phrase "95 percent or so" is close to the documented about-967K trigger on a 1M context. It is not a setting named 95.
 
-If both knobs are set, this model applies the percentage to the window and warns. A 250,000 window plus 25% fires at 62,500. Scenario S8: that arm sends 6.21 times fewer raw prompt tokens than about 967k, but only 1.43 times less API-equivalent cost, and it costs more than 25% alone (S8b, API ratio 0.70). Check `compactMetadata.preTokens` before trusting a label.
-
-Production does subtract more. Claude Code v2.1.325, functions `tle` and `WX` in the shipped binary:
+The trigger, read from Claude Code v2.1.325, functions `tle` and `WX` in the shipped binary. `cc_usage_study.model.effective_trigger` implements exactly this:
 
 ```text
 effective_window = window - min(maxOutputTokens, 20000)
@@ -29,9 +27,11 @@ threshold = effective_window - 13000                                       (no o
 threshold = min(floor(effective_window * pct / 100), effective_window - 13000)   (with the override)
 ```
 
-So the live 250,000 window with 25 fires at floor(230,000 x 0.25) = 57,500, not 62,500. The live arm logged `preTokens` 89,402, 62,687, 98,668, 57,993, 68,068, and 57,044. The simulator keeps its simpler 62,500, which understates the trap slightly. A plain window fires 33,000 short of the number you type when `maxOutputTokens` is at least 20,000: 180k fires at 147,000, 140k at 107,000, 100k at 67,000. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18` on a 1M window fires at 176,400. `preTokens` is logged by a different counter from the trigger check, so a fire can land a few thousand tokens under the line or overshoot after a large tool batch.
+If both knobs are set, the percentage applies to the effective window and the model warns. A 250,000 window with 25 fires at floor(230,000 x 0.25) = 57,500, not at the naive 0.25 x 250k = 62.5k. The live arm logged `preTokens` 89,402, 62,687, 98,668, 57,993, 68,068, and 57,044: two fires at the 57,500 line, the rest overshooting by up to 41k after big tool batches. Its first fire was 55.5% past the line, so that arm fails the 15% `preTokens` gate in `benchmarks/protocol.md`. Scenario S8: the compounded arm sends 5.79 times fewer raw prompt tokens than the default, but only 1.12 times less cache-weighted usage, and it uses 1.83 times as much as the 25 percent override alone (S8b, ratio 0.55). Check `compactMetadata.preTokens` before trusting a label.
 
-T3 Code's "Auto-compact after" writes the window integer, 100,000 to 1,000,000. A comment in `ClaudeAdapterV2.ts` (commit 65e4272, read 13 November 2026) says Claude Code compacts about 33,000 tokens short of that window, so 250,000 is shown as about 217,000. That comment is not an Anthropic spec, but the v2.1.325 binary agrees: 20,000 of output reserve plus a 13,000 buffer. This model subtracts 33,000 only when `reserve=33000` (S1b: API 2.15, raw prompt 3.39). T3 also loads user settings by default, so a percentage in `~/.claude/settings.json` still applies on top of the window.
+A plain window fires 33,000 short of the number you type when `maxOutputTokens` is at least 20,000: 180k fires at 147,000, 140k at 107,000, 100k at 67,000. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=18` on a 1M window fires at floor(980,000 x 0.18) = 176,400, and 25 fires at 245,000. A 200k model fires at 167,000 by default and at 45,000 with 25. `preTokens` is logged by a different counter from the trigger check, so a fire can land a few thousand tokens under the line or overshoot after a large tool batch.
+
+T3 Code's "Auto-compact after" writes the window integer, 100,000 to 1,000,000. A comment in `ClaudeAdapterV2.ts` (commit 65e4272, read 13 November 2026) says Claude Code compacts about 33,000 tokens short of that window, so 250,000 is shown as about 217,000. That comment is not an Anthropic spec, but the v2.1.325 binary agrees: 20,000 of output reserve plus a 13,000 buffer. This model applies the same 33,000 by default (S1b, a 250,000 window firing at 217,000: 2.15 times less cache-weighted usage and 3.39 times fewer raw prompt tokens than the default). Passing `reserve` replaces the whole 33,000 without subtracting it twice. T3 also loads user settings by default, so a percentage in `~/.claude/settings.json` still applies on top of the window.
 
 ## Which window you actually get
 
@@ -45,7 +45,7 @@ From the [model config](https://code.claude.com/docs/en/model-config), if you se
 
 [Changelog v2.1.323](https://code.claude.com/docs/en/changelog) (12 November 2026) moved Sonnet 5's default window to the full 1M, so those sessions compact at about 967K instead of about 934K. The same release stopped applying the percentage override to auto-memory extraction, and in some sessions to `/btw`, inside Anthropic-hosted cloud sessions. The main conversation still follows the override.
 
-`1,000,000 - 33,000 = 967,000` matches the documented approximation, and the v2.1.325 binary computes it as 1,000,000 - 20,000 - 13,000. On a 200k window the absolute knob's 100k floor means 25% and 10% both clamp if you use the window control. The percentage override is not forced back up to 100k. On a 200k context, 25% is 50,000 tokens, and S6 says that thrash raises API cost (ratio 0.31).
+`1,000,000 - 33,000 = 967,000` matches the documented approximation, and the v2.1.325 binary computes it as 1,000,000 - 20,000 - 13,000. A 200k model fires at 200,000 - 33,000 = 167,000. On a 200k window the absolute knob's 100k floor clamps low values if you use the window control. The percentage override is not forced back up. On a 200k context, percentage 25 fires at floor(180,000 x 0.25) = 45,000, below the ~46k post-compaction reset, and S6 says that thrash uses 3.39 times the default.
 
 `autoCompactEnabled` defaults to true. `DISABLE_AUTO_COMPACT` turns automatic compaction off.
 
@@ -74,7 +74,18 @@ Inside the subscription, the main conversation uses a 1-hour TTL. It drops to 5 
 
 Haiku 5.5 has a second price tier above 100,000 prompt tokens on that request. The estimator applies the tier per request, not to a week's sum. Fast-mode cache prices are not published here, so a fast call that used the cache is left unpriced. Models from 4.7 onward turn the same text into about 30% more tokens. The analyzer warns when a before/after split crosses that generation. It does not try to correct it.
 
-Idle compaction is on by default for an interactive session on the 1-hour cache once context is at least 200,000 tokens and the session has been idle for about an hour, since v2.1.299 in the terminal and v2.1.314 in VS Code and the Desktop Code tab. The floor is 100,000 (`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`, default 200,000). `idleCompaction: false` (v2.1.290 and later) or `DISABLE_AUTO_COMPACT=1` turns it off. A before/after that crosses those versions is not a clean compaction experiment. In S4, four 75-minute breaks with idle compaction off give an API ratio of 2.28. With idle compaction on (S4b) that falls to 1.31.
+Idle compaction is on by default since v2.1.299 in the terminal and v2.1.314 in VS Code and the Desktop Code tab. It fires only when all four conditions hold:
+
+1. `idleCompaction` is on (`idleCompaction: false`, v2.1.290 and later, or `DISABLE_AUTO_COMPACT=1` turns it off).
+2. The session uses the 1-hour cache. On an API key or usage credits (5-minute cache) it never runs.
+3. The Claude Code process is still alive through the pause. A sleeping laptop, a closed terminal, or a finished `claude -p` run means nothing runs it.
+4. Context is at least `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` (default 200,000, floor 100,000).
+
+It then runs at about 90% of the TTL (about 54 minutes idle), while the cache is still warm, so the summary reads cheaply. The user returns after the TTL, so the next request rebuilds the short post-summary context cold. A before/after that crosses those versions is not a clean compaction experiment.
+
+`--autocompact 180000` fires at 147,000 on a 1M model, so context never reaches the 200,000 idle minimum and idle compaction never runs. Pair it with `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS=100000` if you want the safety net back.
+
+In S4 (idle compaction off) and S4d (on, but the laptop slept), four 75-minute breaks give the same ratio of 2.25 between the default and a 245k fire. With idle compaction running (S4b) that falls to 1.33. The default arm alone uses 1.74 times as much when idle compaction lapses (33.1M against 19.0M units).
 
 ## The meter
 
@@ -122,10 +133,12 @@ Headless `claude -p` is entrypoint `sdk-cli`. Token totals from it are usable. A
 The closed-form trigger used on the EOQ chart is:
 
 ```text
-T* ≈ R + sqrt(2 * K * (g + o) / r)
+T* = R + sqrt(2 * K * (g + o) / r)
 ```
 
-R is the residual context after a summary (46,000 in the baseline: system, project, summary, and re-injected files). K is the fixed cost of compacting. `g + o` is new input plus output per request. `r` is the cache-read multiplier. Cheaper reads move the valley to the right. The formula estimates 126,393 at 0.1x, 158,880 at 0.05x, and 205,060 at 0.025x. A 10,000-token grid of the same session bottoms at 120,000, 160,000, and 220,000.
+R is the residual context after a summary (46,000 in the baseline: system, project, summary, and re-injected files). K is the fixed cost of compacting. `g + o` is new input plus output per request. `r` is the cache-read multiplier. Cheaper reads move the valley to the right. The formula estimates 126,393 at 0.1x, 158,880 at 0.05x, and 205,060 at 0.025x. A 10,000-token grid of the same session bottoms at 120,000, 160,000, and 220,000. Those are fire points: type 33,000 more with `--autocompact` (153,000, 193,000, 253,000).
+
+K is kept equal to the per-compaction overhead `simulate()` charges, so the closed form and the trace agree. The modeled summary call alone (instruction, summary output, and reading a 107k context at 0.05x) is about 21.6k units. The 19 live Opus 5.5 compactions averaged about 36.6k units, bimodal from about 19k to 85k per phase. Raising K by that 15k moves the 0.05x estimate from 158,880 to 170,507, and the simulated grid valley from 160,000 to 170,000. `outputs/summary.json` reports both under `eoq.live_calibrated`.
 
 ## Sources
 
@@ -141,4 +154,4 @@ R is the residual context after a summary (46,000 in the baseline: system, proje
 
 ## Hidden compaction cost
 
-The summary request a compaction sends writes no assistant row in the session JSONL. Claude Code's `cost-state` row (`totalCostUSD`, `modelUsage`) includes it. In the live `LedgerKit v3.2` arms on Opus 5.5 with a 5-minute cache, `cost_state` minus the deduplicated assistant rows was $0.00 at the default (no compaction), $0.37 at 180k (2 compactions), $0.52 at 140k (4), $0.87 at the 250,000 window with 25 (6), and $1.01 at 100k (7): $0.08-$0.34 per compaction and 25.5% of the 100k bill. Any analysis that prices only assistant rows will flatter a low trigger. Claude Desktop writes no `cost-state` row at all, so a Desktop session's assistant-row total is a floor.
+The summary request a compaction sends writes no assistant row in the session JSONL. Claude Code's `cost-state` row (`totalCostUSD`, `modelUsage`) includes it. In the live `LedgerKit v3.2` arms on Opus 5.5 with a 5-minute cache, `cost_state` minus the deduplicated assistant rows was zero at the default (no compaction) and, as a share of session usage, 11.8% at 180k (2 compactions), 13.9% at 140k (4), 24.3% at the 250,000 window with 25 (6), and 25.5% at 100k (7). In input-token equivalents that is about 94k, 130k, 219k, and 253k. Those are a residual, not measured tokens: the hidden calls have no token breakdown. Phase means run from about 19k to 85k units per compaction, 36.6k on average. Any analysis that prices only assistant rows will flatter a low trigger. Claude Desktop writes no `cost-state` row at all, so a Desktop session's assistant-row total is a floor.

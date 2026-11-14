@@ -98,10 +98,10 @@ def test_last_record_wins_when_output_shrinks():
 
 
 def test_project_label_hashes_real_paths():
-    label = project_label_for(Path("/tmp/cc-study-example/proj/session.jsonl"))
+    label = project_label_for(Path("/srv/cc-study-example/proj/session.jsonl"))
     assert label.startswith("project-")
     assert label != "proj"
-    again = project_label_for(Path("/tmp/cc-study-example/proj/other.jsonl"))
+    again = project_label_for(Path("/srv/cc-study-example/proj/other.jsonl"))
     assert again == label
 
 

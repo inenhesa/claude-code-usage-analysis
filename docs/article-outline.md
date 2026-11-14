@@ -1,66 +1,43 @@
-# Outline: Finding the Auto-Compaction Sweet Spot in Claude Code
+# Outline: fewer tokens is not less usage, and a pause can cost more than the work
 
-The essay is `docs/article-draft.md`. Workflow numbers are outputs of the caching simulator in `outputs/summary.json`, including `use_cases`. Live numbers are the 14 Opus 5.5 runs in `outputs/live_experiments.json`, 13 November 2026, $18.57 of API spend. Neither is a subscription-meter measurement.
+The essay is `docs/article-draft.md`. Modeled numbers are in `outputs/summary.json` (`use_cases`, `pause_tax`, `eoq`). Live numbers are the 14 Opus 5.5 runs in `outputs/live_experiments.json`, 13 November 2026, n=1 per arm. Every change is cache-weighted usage at the Opus 5.5 weights `1 / 1.25 / 2 / 0.05 / 5`, with 0.1x and 0.025x reads as the sensitivity range. Neither source is a subscription-meter measurement.
 
-## 1. Open on the default, then the valley
+## 1. Open on the measured surprise
 
-Native 1M models wait until about 967k. Everyday deep work bottoms near 120k at standard read prices and near 160k at Opus 5.5 / Sonnet 5.5 read prices. The copy-paste setting is one knob at 180k. Name the client track (Desktop, CLI, T3 Code) before any chart, and keep it separate.
+The 100k arm sent 63% fewer raw tokens and used 25.2% more. A warm session saved 27.7% against `/clear`. Then the measured turn: a 97k session resumed after a 10-minute break used about 10 times a fresh `/clear` start on the same fix (3 of 3 pairs, n=1 each).
 
 ## 2. Three meanings of "usage"
 
-Raw prompt tokens, cached API cost, and the unpublished five-hour meter. A large change in the first is not the same change in the third. Link the [usage-limits article](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work) and the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing).
+Raw prompt tokens, cache-weighted usage, and the unpublished five-hour meter. A large change in the first is not the same change in the second, and the third is not measured here. Link the [usage-limits article](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work) and the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing).
 
-Define a user turn versus a model request before the 60-by-8 figure. On that session at 0.05x reads, 160k trims prompt tokens by about 77% and estimated cost by about 43%.
+## 3. The pause tax
 
-## 3. The use-case table
+- One old token after a pause costs 12.5 to 40 times a warm read (rewrite weight over read weight).
+- Stale resume loses to `/clear` plus a handoff past about 10k of history (8.3k on the 1-hour cache), with 2 exploration calls saved. +41% at 30k, 2.02 times at 60k, 3.25 times at 120k.
+- Hot resume wins while history times remaining calls stays under about 120k token-calls at 0.05x reads.
+- Hourly `claude -p --resume`: fresh runs use 33% to 35% of it.
+- Measured live, 14 November 2026, Opus 5.5, 5-minute cache: stale resume after 10+ minutes used 9.8 to 9.9 times a fresh start (3 pairs). Warm resume after 3.3 minutes, same 97k history, used 1.5 times a fresh start and 6.5 times less than stale. First stale call rewrote 86k to 88k tokens; the warm one read 96,730 and wrote 743.
 
-Lead with the eight workflows in `summary["use_cases"]`:
+## 4. Compaction, measured live
 
-- Deep feature work: 120k (-57%) at 0.1x reads, 160k (-43%) at 0.05x reads.
-- Marathon refactor with smaller steps: 130k (-54%).
-- Heavy file reads and a large retained context: 280k (-24%). Heavier memory moves the valley up.
-- Rules only in the chat, eight repairs per compact: 360k (about 24.9% under the default). Root `CLAUDE.md` comes first.
-- Four long breaks with idle compaction on: 140k, and only about 18% under the default, because idle compaction already fired.
-- Quick bugfix: 180k matches the default at 0%. Forcing 100k costs about 8% more.
-- 200k-context model: the default is already close. Forcing 40k or 50k costs about 227% more. A 120k trigger is only about 6% under the default.
+Five arms, one 4-phase migration, no pauses. Default 100, 180k 100 (tie), compound +13.6%, 140k +18.1%, 100k +25.2%. Hidden summary share 11.8% to 25.5%. At 0.1x reads 180k is 13.6% under the default. Two arms fail the 15% `preTokens` gate. The tie assumes no pause past the cache window.
 
-List-price dollars, not the meter: Sonnet 5 is $56.07 at the default and $23.90 at 120k. Opus 5.5 is $68.16 at the default and $38.64 at 160k.
+## 5. The trigger math
 
-The two-knob trap and the percentage math on a 200k window stay in `docs/reference.md`. Do not make them the opening.
+`window - min(maxOutputTokens, 20000) - 13000`: 180000 fires at 147,000, override 18 at 176,400, a 250,000 window with 25 at 57,500. The four idle-compaction conditions, and why `--autocompact 180000` needs `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS=100000` to keep idle compaction.
 
-## 4. Figures
+## 6. Clients
 
-Lead with the three shareable charts:
+First request: T3 Code +17%, Desktop Code tab 2.04 times the interactive CLI. Bugfix usage: T3 1.19x, Desktop 1.80x. Every first request read 63% to 68% from a warm cache, so these are not cold starts. C2, C4, C5, and C6 are not run. Cite [claude-code#97074](https://github.com/anthropics/claude-code/issues/97074) and [t3code#24649](https://github.com/pingdotgg/t3code/issues/24649).
 
-1. `outputs/figures/scenario_comparison.png`. Each workflow's sweet spot, or the penalty for forcing a low trigger.
-2. `outputs/figures/eoq_curve.png`. Session cost as a percent of the ~967k default. Valleys at 120k (-57%), 160k (-43%), 220k (-28%). The green band is 150k-200k and the red band marks the thrash zone below 100k. Red is 0.1x reads, solid green 0.05x, dashed green 0.025x. There is no marker for a fixed fraction of 1M.
-3. `outputs/figures/context_sawtooth.png`. Default (red) against the 160k sweet spot (green). The subtitle is computed from those two runs.
+## 7. The model's sweet spots
 
-Live charts, from `python3 -m cc_usage_study.experiments figures`:
+Deep work 120k (-57%) at 0.1x reads and 160k (-43%) on Opus 5.5. Marathon 130k (-54%). Heavy memory 280k (-24%). Rules only in the chat 360k (-24.9%). Long breaks with idle compaction 140k (-18%). Bugfix: leave it, forcing 100k is +8%. 200k model: leave it, override 25 is +239%. Pause traps: lapsed idle +76%, 5-minute gaps +213%.
 
-- `outputs/figures/live_compaction_arms.png`. Visible assistant cost (green) plus hidden compaction-summary cost (red) for 5 arms, and observed `preTokens` (red dots) against the `tle` + `WX` threshold (green).
-- `outputs/figures/live_clear_vs_warm.png`. Three `/clear` sessions (red, $0.1507) against one warm session (green, $0.1089).
-- `outputs/figures/live_client_comparison.png`. Cold prefix and bugfix cost: CLI in green, T3 Code in light red, Desktop in deep red.
+## 8. Figures
 
-Supporting charts, same assumptions:
+Lead charts: `ttl_price_of_a_pause.png`, `resume_crossover.png`, `cron_resume_vs_fresh.png`, `live_compaction_arms.png`, `live_clear_vs_warm.png`, `live_client_comparison.png`, `scenario_comparison.png`, `eoq_curve.png`, `context_sawtooth.png`. Supporting: `cumulative_raw_tokens.png`, `cumulative_api_equivalent.png`, `amnesia_breakeven.png`, `sensitivity_rework.png`, `compounding_sawtooth.png`, `short_session.png`, `threshold_sweep.png`, `sensitivity_cache_hit.png`. Two hues only: green for the better option, red for the worse.
 
-4. `outputs/figures/cumulative_raw_tokens.png` and `cumulative_api_equivalent.png`.
-5. `outputs/figures/amnesia_breakeven.png` and `sensitivity_rework.png`.
-6. `outputs/figures/ttl_cliff.png`.
-7. `outputs/figures/compounding_sawtooth.png`. The stacked-knob case, explained in the reference.
-8. `outputs/figures/short_session.png`. The lines match. Saving is 0%.
-9. `outputs/figures/threshold_sweep.png` and `sensitivity_cache_hit.png`.
+## 9. What is still unmeasured
 
-## 5. Quality and the client
-
-Eight repairs move the valley to 360k. Fifteen repairs are a second sensitivity run, not a law. Cost per finished task is the metric. Root `CLAUDE.md` and executable tests come before a lower trigger.
-
-Part 2 holds the window fixed and compares clients. Cards C1 and C3 are measured: T3 Code v0.1.9 +17% cold prefix and +19% bugfix cost over Claude CLI v2.1.325, Claude Desktop v5.1231.2 2.04 times and 1.80 times. C2, C4, C5, and C6 are not run. `sdk-cli` versus interactive `cli` is a meter question, not a token question. Cite [claude-code#97074](https://github.com/anthropics/claude-code/issues/97074) and [t3code#24649](https://github.com/pingdotgg/t3code/issues/24649).
-
-## 6. The live section
-
-Lead Part 1's live section with the hidden summary bill: $0.08-$0.34 per compaction, $1.01 (25.5%) on the 100k arm. Then the binary math: window minus min(maxOutputTokens, 20,000) minus 13,000, so 180k fires at 147,000, and a 250,000 window with 25 fires at 57,500. Then break-even: on a ~270k session 180k ties at $3.17 and lower triggers lose 14% to 25.2%. Then `/clear` against a warm session, -27.7%.
-
-## 7. What is still unmeasured
-
-Five-hour and weekly meter percentage points, subscription 1-hour cache behavior, sessions past 300k tokens, repeats, and cards C2, C4, C5, C6. Do not invent them.
+Five-hour and weekly meter movement, the subscription 1-hour cache, sessions past 300k tokens, the 1-hour pause tax live, repeats beyond n=1, and cards C2, C4, C5, C6. Do not invent them.
