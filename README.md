@@ -6,15 +6,15 @@
 
 ## The rules
 
-Each rule says how strong its evidence is: **measured** (live runs, with n), **(modeled), validated** (the simulator, back-tested against the live runs), or **(modeled) only** (not yet confirmed by a measurement).
+Each rule says how strong its evidence is: **measured** (live runs, with n) or **(modeled)** (the caching simulator, not confirmed by a live run of that rule).
 
 | Situation | Do this | Evidence |
 | --- | --- | --- |
 | Leaving for a break | [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x a fresh start, compact call included, not 10x. | Measured, n=3 |
 | Back after a break | [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff. Resuming used about 10x, and so did `/compact` after the break. | Measured, n=3 and n=2 |
 | Quick related fixes back to back | Stay in the session. It used 28% less than `/clear` between each, while history stayed small (about 20k). | Measured, n=1 |
-| Scheduled `claude -p` jobs | Fresh session every run, state in a file. `--resume` costs about 3x. | (modeled), validated; the real penalty is likely larger (see [validation](#does-the-model-hold-up)) |
-| Long session headed past 300k tokens | `claude --autocompact 180000`. | (modeled) only. Live, it tied the default on a 270k session; the model's "43% less" is not confirmed |
+| Scheduled `claude -p` jobs | Fresh session every run, state in a file. `--resume` costs about 3x. | (modeled). Not back-tested; the published constants understate resume penalties (see [validation](#does-the-model-hold-up)) |
+| Long session headed past 300k tokens | `claude --autocompact 180000`, with `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS=100000` if you take long breaks with the terminal open. | (modeled). Live, it tied the default on a 270k session; the model's "43% less" is not confirmed |
 | Choosing a client | The same fix used 1.19x in T3 Code and 1.80x in Claude Desktop's Code tab, against the plain CLI. | Measured, n=1 per client |
 
 ### Does this apply to you?
@@ -24,9 +24,9 @@ The 10x depends on how long your [prompt cache](https://code.claude.com/docs/en/
 | Your setup | Cache lifetime | What a "break" is | What to expect |
 | --- | --- | --- | --- |
 | API key or usage credits | 5 minutes | Anything over 5 minutes | The measured 10x (breaks of 10 to 13 minutes; a break just past 5 minutes was not measured) |
-| Subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan) | 1 hour | Over an hour | No cliff for short breaks. After an hour, carried history is rewritten at 2x instead of 1.25x: about 11x for the same fix (modeled with the calibrated task shape; not measured) |
-| Model with 0.1x reads (Sonnet 5, Opus 4.7) | either | as above | Stale resume 9.0 times |
-| Model with 0.025x reads (Fable, Mythos) | either | as above | Stale resume 10.4 times |
+| Subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan) | 1 hour | Over an hour | No cliff for short breaks. After an hour, carried history is rewritten at 2x instead of 1.25x: about 11x for the same fix (modeled, 10.98x with the calibrated task shape; not measured) |
+| Model with 0.1x reads (Sonnet 5, Opus 4.7) | 5 minutes | Over 5 minutes | Stale resume 9.0 times (the same runs, reweighted) |
+| Model with 0.025x reads (Fable, Mythos) | 5 minutes | Over 5 minutes | Stale resume 10.4 times (the same runs, reweighted) |
 
 A subscription's five-hour and weekly meter uses weights Anthropic does not publish, so it can rank two habits differently from the list-price units used here.
 
@@ -62,7 +62,17 @@ Next: patch money.py, run the suite.
 | Compaction trigger settings | 1 per arm, 5 arms | 24-module migration over 4 phases, about 270k peak, no long pauses | `compaction` |
 | Three clients, one bugfix | 1 per client | Identical 3-line `CLAUDE.md`, no user MCP servers | `client_comparison` |
 
-Everything is in `outputs/live_experiments.json` (numbers only, no prompts or paths). Modeled numbers come from the caching simulator in `src/cc_usage_study/` and are in `outputs/summary.json`. No live API calls are needed to check any of it.
+That is 14 live runs across the compaction, `/clear` and client tests, plus a 9-run cache-expiry test and a 5-run `/compact` test. Everything is in `outputs/live_experiments.json` (numbers only, no prompts or paths). Modeled numbers come from the caching simulator in `src/cc_usage_study/` and are in `outputs/summary.json`. No live API calls are needed to check any of it.
+
+| Claim | Source | Status |
+| --- | --- | --- |
+| Stale resume after 10+ min about 10 times a fresh start; warm resume with 97k history 1.5 times | `ttl_runs` | Measured: 3 stale and fresh pairs, 1 warm run |
+| `/compact` before a break 2.5 times a fresh start, after a break about 10 times | `compact_runs` | Measured: 3 before, 2 after, same fixes as `ttl_runs` |
+| Warm session -27.7% against `/clear` | `clear_vs_warm` | Measured, n=1, tiny history |
+| Hidden summary usage 11.8% to 25.5%; lower triggers tie or lose on a ~270k session | `compaction`, 5 arms | Measured, n=1, no pauses, two arms fail the 15% gate |
+| Client multipliers 1.19x and 1.80x | `client_comparison` | Measured, n=1. Desktop is a floor |
+| Trigger formula and idle-compaction conditions | Claude Code v2.1.325 binary | Read from the binary; live `preTokens` overshoot it by 0.3% to 55.5% |
+| Pause curves, cron, 1-hour cache, workflow sweet spots | `outputs/summary.json` | Modeled. Short-task caching back-tested; compaction failed its back-test |
 
 > **Units.** "Usage" is **cache-weighted usage**: tokens weighted the way the API bills them, on Opus 5.5 `1 / 1.25 / 2 / 0.05 / 5` (input / 5-minute cache write / 1-hour cache write / cache read / output). Raw token counts mislead: a warm and a stale resume below moved the same 294k tokens and differed 6.5x in usage.
 
@@ -79,7 +89,7 @@ We built a session to about 97k tokens, walked away, and resumed it for a quick 
 | First call: tokens written to cache | about 5,500 | 743 | 86,178 to 88,229 |
 | Raw tokens for the whole fix | about 52,000 | 293,834 | 294,158 to 301,452 |
 
-- Even warm, 97k of history was too much to drag into an unrelated small fix.
+- Even warm, 97k of history was too much to drag into an unrelated small fix. The model says a warm resume only pays while history is under about 24k tokens.
 - The multiple is against a small fix. A bigger next task would shrink it, because the fresh session's own work would weigh more. The extra cost per carried token (about 1.4 units) does not shrink.
 
 #### `/compact` before or after the break
@@ -88,8 +98,8 @@ Headless it is `claude -p "/compact Keep: the 3 issues found, files touched, tes
 
 | Same quick fix, fresh `/clear` = 1 | `/compact` call | Next fix | Total |
 | --- | ---: | ---: | ---: |
-| `/compact` right away (cache warm), then a 6.5 to 11 min break, n=3 | 1.1 to 1.2 | 1.3 | **2.5x** (2.49 to 2.53) |
-| Break first (cache cold), then `/compact`, n=2 | 8.0 to 8.8 | 1.2 to 1.5 | **9.3x and 10.2x** |
+| `/compact` right away (cache warm), then a 6.5 to 11 min break, n=3 | 1.1 to 1.2 | 1.3 | **2.5x** (2.49 to 2.53, each against its paired fresh run) |
+| Break first (cache cold), then `/compact`, n=2 | 8.0 to 8.8 | 1.2 to 1.5 | **9.3x and 10.2x** (paired) |
 | Plain resume after the break | none | 9.8 to 9.9 | **9.8x to 9.9x** |
 
 - **Before the break it is cheap:** the summary call reads the 96k history from the warm cache.
@@ -104,26 +114,28 @@ Headless it is `claude -p "/compact Keep: the 3 issues found, files touched, tes
 
 Scheduled jobs are the worst case (modeled): twelve `claude -p` runs spaced past the cache window, where every `--resume` rebuilds the whole growing history cold. Fresh runs use 33% of that on the 1-hour cache and 35% on the 5-minute cache.
 
-A stale resume loses to a fresh start once history passes **about 10k tokens**, even if the fresh session needs 2 extra exploration calls (model, validated: 10.8k with the measured task shape). The diamonds are the live runs. Note the curve's percentages use the published constants, which understate the penalty; see below.
+A stale resume loses to a fresh start once history passes **about 10k tokens**, even if the fresh session needs 2 extra exploration calls (modeled; 8.3k on the 1-hour cache; 10.8k and 8.7k with the measured task shape). A warm resume wins while history times remaining calls stays under about 120k token-calls at 0.05x reads (about 57k at 0.1x). The diamonds are the live runs. The curve's percentages use the published constants, which understate the penalty above about 30k; see below.
 
 ### Does the model hold up?
 
-The modeled rules (scheduled jobs, pause traps, sweet spots) rest on the simulator. `python -m cc_usage_study.validate` scores it against every live run, with no API calls. Two predictions per run: the **published** constants that produced the modeled numbers in this README, and a **calibrated** model whose task shape is read from the fresh `/clear` runs only (calls per task, the cached prefix shared across sessions, tokens per call).
+The modeled rules (scheduled jobs, pause traps, sweet spots) rest on the simulator. `python -m cc_usage_study.validate` scores it against every live run, with no API calls, in two variants: the **published** constants that produced the modeled numbers in this README, and a **calibrated** variant whose task shape (calls per task, tokens per call, the prefix already cached by earlier sessions) is read from the 3 fresh `/clear` runs only.
 
-![The caching model against the live runs: published constants understate every ratio, the calibrated model lands on the measurements](outputs/figures/model_vs_measured.png)
+Each run has a role. The fresh runs are the **fit**. The warm and stale resumes are **predictions**: the calibrated model sees only the fresh runs and the history size. The `/compact` runs are **explained**, not predicted: they use each run's own summary size and post-compact prompt.
 
-| Same quick fix, fresh = 1 | Measured | Model, published | Model, calibrated |
-| --- | ---: | ---: | ---: |
-| Warm resume | 1.51 | 1.07 | 1.47 |
-| Stale resume | 9.87 | 3.53 | 9.80 |
-| `/compact` before the break | 2.49 | 1.84 | 2.60 |
-| `/compact` after the break | 9.64 | 3.96 | 10.24 |
-| Runs within a quarter of the measured usage | | 0 of 10 | 10 of 10 |
+![The caching model against the live runs: published constants understate every ratio, the calibrated model lands near the measurements](outputs/figures/model_vs_measured.png)
 
-- **The caching arithmetic holds.** With a realistic task shape the model lands within 10% on every short-task run. The fresh baseline is fitted, and the `/compact` rows use each run's measured post-compact prompt size; the stale and warm rows are predictions.
-- **The published constants were wrong in one place that matters.** They assume a fresh session writes its whole system prompt to the cache. Live, about 11.4k tokens of it was already cached by earlier sessions, so a fresh start cost 4.5x less than modeled. Every modeled "resume vs fresh" ratio is therefore **too small**: at 60k of history a stale resume costs +189% against `/clear` plus 2 exploration calls, not the published +102%. The break-even history barely moves (10.1k to 10.8k).
-- **`/compact` after a break** sends the cold history as plain input (1x), not as a cache write (1.25x) as the simulator assumes.
-- **Long-session compaction is not validated.** Replaying the migration task, the model gets the sign right for 3 of 4 trigger settings but not the size: it predicts about -1% for `--autocompact 140000` where the live run measured +18.1%. It prices a summary call at 21.6k units against a measured 36.6k (1.7x), and it misses how often compaction fires (3 against 4 at 140k, 10 to 14 against 6 on the stacked setting), partly because live, one large tool result can carry the context up to 56% past the trigger before the check runs. Treat the sweet-spot section below as a hypothesis.
+| Same quick fix, mean fresh = 1 | Role | Measured | Model, published | Model, calibrated |
+| --- | --- | ---: | ---: | ---: |
+| Warm resume | prediction | 1.51 | 1.07 | 1.47 |
+| Stale resume | prediction | 9.87 | 3.53 | 9.80 |
+| `/compact` before the break | explained | 2.49 | 1.84 | 2.40 |
+| `/compact` after the break | explained | 9.64 | 3.96 | 10.53 |
+
+- **The caching arithmetic reproduces the resumes.** All 4 resume runs land within 3% with the calibrated shape (published constants: 0 of 4 within a quarter). It is a weak test: 4 runs from one 97k session, and a stale resume is dominated by writing the cold history once, which any sound caching model gets right.
+- **The published task shape is the problem.** The published constants put a fresh start at 4.5 times the measured cost. Most of that is the task shape: 5 calls with 2,000-token tails and 600 output tokens each, where the live fix took 3 calls with far smaller turns (fixing that alone leaves 2.1 times). The system prompt already cached by earlier sessions (about 11.4k tokens) is the smaller part (fixing it alone leaves 3.4 times).
+- **What that changes (modeled, only 97k was measured).** The break-even barely moves, but modeled resume penalties above it look understated. At 30k of history a stale resume costs +96% against `/clear` plus 2 exploration calls, not the published +41%; at 60k, +245% not +102%. The break-even history barely moves (10.1k to 10.8k on the 5-minute cache, 8.3k to 8.7k on the 1-hour cache).
+- **`/compact` after a break** sent the cold history as plain input (1x), not as a cache write (1.25x) as the simulator assumes. That was read from these same runs.
+- **Long-session compaction fails its back-test.** Replaying the migration task from the default arm's measured trajectory, the model gets the sign right on 2 of 4 trigger settings and lands within 5 points on 1: it predicts -0.9% for `--autocompact 140000` where the live run measured +18.1%, and +51.7% with 14 compactions for the stacked setting where the live run measured +13.6% with 6. It prices a summary call at 21.6k units against a measured 36.6k per compaction. Real context growth is lumpy (1 to 14 calls between compactions in one arm), so uniform growth misplaces compactions; fitting summary size and extra calls on the same arms made it worse. Treat the sweet-spot section below as a hypothesis.
 
 Full scores per run: `outputs/validation.json`.
 
@@ -135,7 +147,7 @@ Same task in every arm: a 24-module migration over 4 `--resume` phases. Opus 5.5
 
 - **Fewer tokens is not less usage.** The 100k arm sent 63% fewer raw tokens (2.27M against 6.12M) and used 25.2% more. Most of the default's tokens were cheap cache reads.
 - **Part of the cost is invisible.** Summary calls were 11.8% to 25.5% of each compacting arm, about 36.6k units per compaction on average.
-- **The ranking depends on read weight.** At 0.1x reads the 180k arm comes out 13.6% under the default. The tie also assumes no pauses.
+- **The ranking depends on read weight.** At 0.1x reads the 180k arm comes out 13.6% under the default. The tie also assumes no pauses: one pause past the cache at about 260k of history would add roughly 39% to the default arm (modeled).
 - Quality held everywhere: all 5 arms passed the tests and the functional checker and reported 12 of 12 planted anomalies.
 
 <details>
@@ -175,7 +187,7 @@ T3 Code runs Claude Code through the Agent SDK and adds 67 deferred tools plus a
 
 ### 5. Where compaction actually fires
 
-Read from the Claude Code v2.1.325 binary. The number you type is not where it fires: **subtract 33,000, and never stack two knobs.** The formula matched the repo's predicted threshold on all 5 live arms; the first live compaction fired 0.3% to 55.5% past it, because the check runs between requests.
+Read from the Claude Code v2.1.325 binary. The number you type is not where it fires: **subtract 33,000, and never stack two knobs.** The first live compaction fired 0.3% to 55.5% past the formula's threshold, because the check runs between requests and one large tool result can carry the context well past it.
 
 ```text
 effective_window = window - min(maxOutputTokens, 20000)
@@ -192,7 +204,7 @@ threshold        = min(floor(effective_window * pct / 100), effective_window - 1
 | `--autocompact 100000` | 67,000 |
 | 250,000-token window and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=25` | 57,500 |
 
-**Idle compaction** summarizes a big session at about 90% of the cache window, before it expires. It only runs when all of these hold: `idleCompaction` is on (default since v2.1.299), the session is on the **1-hour** cache (never on API keys), the **process is still alive** (not a sleeping laptop or a finished `claude -p`), and context is at least `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` (**200,000** by default, 100,000 at the lowest).
+**Idle compaction** summarizes a big session at about 90% of the cache window, before it expires. It only runs when all of these hold: `idleCompaction` is on (default since v2.1.299), the session is on the **1-hour** cache (never on API keys), the **process is still alive** (not a sleeping laptop or a finished `claude -p`), and context is at least `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` (**200,000** by default, 100,000 at the lowest). `--autocompact 180000` keeps you under 200,000, so pair it with `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS=100000` if you take long breaks with the terminal open.
 
 ### 6. Sweet spots by workflow (model only)
 
@@ -218,7 +230,7 @@ The compaction model failed its back-test on size (see [validation](#does-the-mo
 | --- | --- | ---: |
 | Lunch breaks, laptop slept, idle compaction lapsed | the same day with idle compaction running | +76% |
 | API key, 7-minute gaps past the 5-minute cache | the same session answered within 2 minutes | +213% |
-| Stale `--resume` with 60k of history | `/clear` plus a handoff, 2 extra exploration calls | +102% (+189% calibrated) |
+| Stale `--resume` with 60k of history | `/clear` plus a handoff, 2 extra exploration calls | +102% (+245% calibrated) |
 | Hourly `claude -p` with `--resume` | a fresh session every run | +201% |
 
 </details>
@@ -233,7 +245,8 @@ The compaction model failed its back-test on size (see [validation](#does-the-mo
 - **One model, small tasks, one cache lifetime.** All live runs used Opus 5.5 on the 5-minute cache. 1-hour cache numbers are modeled.
 - **Ratios against a small fix inflate.** The 10x is against a 3-call fix; the extra cost per carried token is the portable number.
 - **The meter is not the bill.** Units are API list price. Subscription limits use unpublished weights.
-- **The compaction model is unvalidated on size.** See [validation](#does-the-model-hold-up).
+- **The compaction model failed its back-test.** See [validation](#does-the-model-hold-up).
+- **The short-task back-test is narrow.** 4 predictions from one session, one history size, one model. It shows the arithmetic is right, not that every modeled number is.
 - **Two of five compaction arms fail the repo's own validity gate.**
 
 More on method and open questions: [FINDINGS.md](FINDINGS.md).
