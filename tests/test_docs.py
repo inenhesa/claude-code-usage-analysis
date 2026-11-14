@@ -102,7 +102,7 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "T3 Code" in top
     assert "Claude Desktop's Code tab" in top
     assert "We did not measure the Claude chat app." in top
-    assert "1.19x" in top and "1.80x" in top
+    assert "1.19 times the CLI" in top and "at least 1.80 times the CLI" in top
     for figure in (
         "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",
@@ -125,7 +125,7 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "1 / 1.25 / 2 / 0.05 / 5" in details
     assert "Honest limits" in details
     assert "n=1" in details
-    assert "(modeled)" in readme[:evidence]
+    assert "(estimate)" in readme[:evidence]
 
 
 def _github_slug(title: str) -> str:
