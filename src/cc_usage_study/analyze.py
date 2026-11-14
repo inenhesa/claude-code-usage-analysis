@@ -671,6 +671,63 @@ def _group_counts(calls: list[dict], field_name: str) -> dict:
     }
 
 
+def _call_usd(call: dict) -> float | None:
+    """List-price USD for one deduplicated call, or None when it cannot be priced.
+
+    Unknown model, fast mode with cache tokens, or a missing cache-write TTL
+    split all return None. Callers must count and report unpriced calls rather
+    than treat them as zero.
+    """
+    usage = call["usage"]
+    if not call.get("model"):
+        return None
+    if not usage.ttl_split_known and usage.cache_creation_input_tokens:
+        return None
+    usd, _reason = estimate_call_usd(
+        call["model"],
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cache_read_tokens=usage.cache_read_input_tokens,
+        cache_write_5m_tokens=usage.cache_creation_5m_tokens if usage.ttl_split_known else 0,
+        cache_write_1h_tokens=usage.cache_creation_1h_tokens if usage.ttl_split_known else 0,
+        prompt_tokens=usage.prompt_tokens,
+        speed=call.get("speed"),
+    )
+    return usd
+
+
+# Below this share of priced calls on either side, a before/after cost delta compares different call sets.
+PRICED_SHARE_MIN = 0.95
+
+
+def _weighted_block(calls: list[dict]) -> dict:
+    """Priced usage per call and per session. Raw token counts mislead because a
+    cache read costs a fraction of a cache write, and the mix changes with
+    session shape. Use this block, not prompt tokens, for before/after claims.
+    """
+    priced = 0
+    total = 0.0
+    by_stream: dict[str, float] = defaultdict(float)
+    for call in calls:
+        usd = _call_usd(call)
+        if usd is None:
+            continue
+        priced += 1
+        total += usd
+        by_stream[call["stream_id"]] += usd
+    per_stream = list(by_stream.values())
+    return {
+        "priced_calls": priced,
+        "unpriced_calls": len(calls) - priced,
+        "priced_share": (priced / len(calls)) if calls else None,
+        # Sums over priced calls only. None when nothing could be priced, never 0.
+        "list_price_usd_total": round(total, 6) if priced else None,
+        "list_price_usd_per_call": (total / priced) if priced else None,
+        "list_price_usd_per_session_median": _median(per_stream),
+        "list_price_usd_per_session_mean": (sum(per_stream) / len(per_stream)) if per_stream else None,
+    }
+
+
 def _sessions(calls: list[dict], boundaries: list[dict]) -> list[dict]:
     streams = sorted({call["stream_id"] for call in calls} | {item["stream_id"] for item in boundaries})
     rows = []
@@ -722,6 +779,7 @@ def _report(stats: dict, calls: list[dict], boundaries: list[dict], synthetic_an
             "timestamp": call["timestamp"],
             "entrypoint": call["entrypoint"],
             "version": call["version"],
+            "speed": call.get("speed"),
             "tokens": call["usage"].as_dict(),
         }
         for call in calls
@@ -860,6 +918,9 @@ def split_periods(report: dict, split_date: str, tz_name: str = "UTC") -> dict:
                 usage.cache_read_input_tokens / usage.prompt_tokens if usage.prompt_tokens else None
             ),
             "main_calls": block["calls"],
+            "ttl_expired_rebuilds_main": _rebuilds(chosen, bounds)["ttl_expired_rebuild"],
+            "weighted_main": _weighted_block([c for c in chosen if c["role"] == "main"]),
+            "weighted_all": _weighted_block(chosen),
         }
 
     return {
@@ -874,9 +935,13 @@ def split_periods(report: dict, split_date: str, tz_name: str = "UTC") -> dict:
         "after": summarize("after"),
         "undated": summarize("undated"),
         "comparison_note": (
-            "Compare prompt tokens per session and per main call. "
-            "Raw totals confound how much work was done in each period. "
-            "A client switch in the same week is a separate variable; split by entrypoint too."
+            "Compare weighted_main (list-price USD per call and per session) before raw "
+            "prompt tokens: a cache read is cheap, a cache write is not, and the mix shifts "
+            "with session shape, so raw tokens can move the opposite way from cost. "
+            "Raw totals also confound how much work was done in each period. "
+            "A model switch, a client switch or a TTL change in the same window is a separate "
+            "variable; split by model, entrypoint and cache TTL too. A before/after split is "
+            "observational, never proof that one setting caused the change."
         ),
     }
 
@@ -906,12 +971,27 @@ def format_scorecard(report: dict) -> str:
     if periods:
         before = periods["before"].get("prompt_tokens_per_call")
         after = periods["after"].get("prompt_tokens_per_call")
+        wmb = periods["before"].get("weighted_main") or {}
+        wma = periods["after"].get("weighted_main") or {}
+        wb = wmb.get("list_price_usd_per_call")
+        wa = wma.get("list_price_usd_per_call")
         if before and after:
             delta = (after - before) / before * 100.0
             lines.append(
-                f"After {periods['split_date']}: prompt tokens per main call {delta:+.0f}% versus before"
+                f"After {periods['split_date']}: prompt tokens per main call {delta:+.0f}% versus before (raw, can mislead)"
             )
-        else:
+        if wb and wa:
+            sb = wmb.get("priced_share") or 0.0
+            sa = wma.get("priced_share") or 0.0
+            coverage = f"priced {sb:.0%} of calls before, {sa:.0%} after"
+            if min(sb, sa) < PRICED_SHARE_MIN:
+                lines.append(f"List-price cost delta not shown: {coverage}; too few priced calls to compare")
+            else:
+                lines.append(
+                    f"After {periods['split_date']}: list-price cost per priced main call "
+                    f"{(wa - wb) / wb * 100.0:+.0f}% versus before ({coverage})"
+                )
+        if not (before and after):
             lines.append(
                 f"Split {periods['split_date']}: "
                 f"{periods['before']['calls']} calls before, {periods['after']['calls']} calls after"

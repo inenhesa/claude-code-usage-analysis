@@ -13,7 +13,7 @@
 - **Long session headed past 300k tokens?** `claude --autocompact 180000`. About 43% less (modeled).
 - **Pick the plain CLI.** The same fix used 1.19x in T3 Code and 1.80x in Claude Desktop's Code tab.
 
-"Break" means longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching): **5 minutes** on an API key or usage credits, **1 hour** on a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan).
+"Break" means longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching): **5 minutes** on an API key or usage credits, **1 hour** on a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan). The live runs used the 5-minute cache with 10 to 13 minute breaks, so the 10x figure holds for breaks of that length on that TTL; a break just past 5 minutes was not measured. Read [FINDINGS.md](FINDINGS.md) for what this study does not establish.
 
 ## Copy-paste
 
@@ -220,6 +220,7 @@ python3 -m cc_usage_study.analyze ~/.claude/projects --split-date YYYY-MM-DD --s
 python3 -m cc_usage_study.simulate --out outputs
 python3 -m cc_usage_study.experiments figures --out outputs
 python3 -m pytest -q
+python3 -m cc_usage_study.pipeline   # all of the above plus reconciliation checks, one command
 ```
 
 The analyzer copies aggregates only, never prompt text. Read `preTokens` on your first `compact_boundary`: if it does not match the table in section 5, your setting is not the one you think.

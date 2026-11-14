@@ -1,4 +1,7 @@
-.PHONY: test simulate live-figures analyze-fixture benchmark-plan
+.PHONY: reproduce test simulate live-figures analyze-fixture benchmark-plan
+
+reproduce:
+	python3 -m cc_usage_study.pipeline
 
 test:
 	python3 -m pytest -q
