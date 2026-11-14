@@ -4,13 +4,29 @@
 
 ![Same quick bugfix on a 97k-token session: fresh start 1x, resume after 3 minutes 1.5x, /compact then a break 2.5x, resume after a 10-minute break 10x, /compact after the break 10x](outputs/figures/hero_coffee_break.png)
 
-## The rules
+## Best practices
 
-- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x the usage of a fresh session (compact call included), not 10x. (n=3)
-- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff. Resuming used about 10x the usage of a fresh session, and so did `/compact` after the break. (resume n=3, `/compact` n=2)
-- **Quick related fixes back to back?** Stay in the session. It used 28% less than `/clear` between each. (n=1)
-- **Scheduled `claude -p` jobs?** Fresh session every run, state in a file. `--resume` costs ~3x. (modeled)
-- **Pick the plain CLI.** The same fix used 1.19x as much in T3 Code and 1.80x in Claude Desktop's Code tab, compared with the CLI. (n=1)
+- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x a fresh session, compact call included, not 10x. (n=3) [Why](#compact-before-or-after-the-break)
+- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff, rather than resume. (n=3) [Why](#1-the-coffee-break-tax)
+- **Quick related fixes back to back?** Stay in the session. It used 28% less than `/clear` between each, while history stayed small. (n=1) [Why](#3-clear-vs-a-warm-session)
+- **Scheduled `claude -p` jobs?** Fresh session every run, state in a file. `--resume` is ~3x. (modeled) [Why](#1-the-coffee-break-tax)
+- **Write code in the plain Claude Code CLI.** Lowest usage of the three we measured. T3 Code is a reasonable alternative at 1.19x. Claude Desktop's Code tab was 1.80x (a floor). Why: it sent a much larger first-request prefix (39,749 tokens against the CLI's 19,528). This is the Code tab, not the Claude chat app. (n=1) [Why](#4-three-clients-one-bugfix)
+- **Judge usage by cache-weighted tokens, not raw counts.** A warm and a stale resume moved the same ~294k raw tokens and differed 6.5x in usage. [Why](#the-evidence)
+
+## Anti-patterns
+
+- **Resuming a big session after a break.** The next small fix used about 10x a fresh session. (n=3) [Why](#1-the-coffee-break-tax)
+- **Running `/compact` after the break.** Still about 10x: the summary call itself reprocesses the cold history. (n=2) [Why](#compact-before-or-after-the-break)
+- **`/clear` between quick related fixes.** You pay the startup cost again each time. (n=1) [Why](#3-clear-vs-a-warm-session)
+- **`--resume` in scheduled `claude -p` jobs.** About 3x a fresh session each run. (modeled) [Why](#1-the-coffee-break-tax)
+- **Using Claude Desktop's Code tab for coding.** Same fix used 1.80x the CLI (a floor). Prefer the CLI, or T3 Code at 1.19x. We did not measure the Claude chat app. (n=1) [Why](#4-three-clients-one-bugfix)
+- **Judging usage by raw token counts.** The same ~294k raw tokens differed 6.5x in usage. [Why](#the-evidence)
+
+## Myths and unknowns
+
+- Lowering the auto-compact trigger (`--autocompact 180000`) is modeled at about 43% less, but it only tied the default live on a 270k session (n=1, no pauses). ([hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots))
+- Compaction sweet spots for long sessions are hypotheses: the compaction model failed its [back-test](#does-the-model-hold-up).
+- Fewer raw tokens is not less usage. One setting sent 63% fewer raw tokens than the default and used 25.2% more. ([measured](#2-compaction-measured-live))
 
 "Break" means longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching): **5 minutes** on an API key or usage credits, **1 hour** on a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan). Measured with 10 to 13 minute breaks on the 5-minute cache ([does this apply to you?](#does-this-apply-to-you)).
 
@@ -32,31 +48,31 @@ Done: tests in tests/test_invoice.py reproduce it.
 Next: patch money.py, run the suite.
 ```
 
-**Contents:** [how we measured](#how-we-measured) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [clients](#4-three-clients-one-bugfix) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
+## Check your own usage
+
+```bash
+python3 -m cc_usage_study.analyze ~/.claude/projects --summary --sessions -o ./local-out/report.json
+```
+
+Prints a scorecard of cache-weighted usage and writes JSON, including cache rebuilds after the TTL expired. Prompt text is never copied; keep the output outside git. Add `--split-date YYYY-MM-DD` for a before/after comparison.
+
+**Contents:** [the evidence](#the-evidence) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [`/clear`](#3-clear-vs-a-warm-session) · [clients](#4-three-clients-one-bugfix) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
 
 ---
 
-## How we measured
+## The evidence
 
-| Experiment | Runs | Conditions | Data |
-| --- | --- | --- | --- |
-| Stale vs warm resume vs fresh start | 3 stale and fresh pairs, 1 warm | Opus 5.5, 5-minute cache, 97k history, breaks of 3.3 and 10 to 13 minutes, 3 small fixes | `ttl_runs` |
-| `/compact` before or after a break | 3 before, 2 after | Same sessions and fixes as above | `compact_runs` |
-| Warm session vs `/clear` between fixes | 1 per arm | Same 3 fixes, history under 21k | `clear_vs_warm` |
-| Compaction trigger settings | 1 per arm, 5 arms | 24-module migration over 4 phases, about 270k peak, no long pauses | `compaction` |
-| Three clients, one bugfix | 1 per client | Identical 3-line `CLAUDE.md`, no user MCP servers | `client_comparison` |
+| Finding | Setup | Evidence |
+| --- | --- | --- |
+| Stale resume after 10+ min about 10x a fresh start; warm resume with 97k history 1.5x | Opus 5.5, 5-minute cache, 97k history, breaks of 3.3 and 10 to 13 minutes, 3 small fixes | Measured, `ttl_runs`: 3 stale and fresh pairs, 1 warm |
+| `/compact` before a break 2.5x a fresh start, after a break about 10x | Same sessions and fixes | Measured, `compact_runs`: 3 before, 2 after |
+| Warm session -27.7% against `/clear` | Same 3 fixes, history under 21k | Measured, `clear_vs_warm`, n=1 |
+| Hidden summary usage 11.8% to 25.5%; lower triggers tie or lose on a ~270k session | 24-module migration over 4 phases, about 270k peak, no long pauses | Measured, `compaction`, n=1 per arm, 5 arms; two arms fail the 15% gate |
+| Client multipliers 1.19x (T3 Code) and 1.80x (Desktop Code tab, a floor) | Identical 3-line `CLAUDE.md`, no user MCP servers | Measured, `client_comparison`, n=1 per client |
+| Trigger formula and idle-compaction conditions | Claude Code v2.1.325 binary | Read from the binary; live `preTokens` overshoot it by 0.3% to 55.5% |
+| Pause curves, cron, 1-hour cache, workflow sweet spots | Caching simulator | Modeled, `outputs/summary.json`. Short-task caching back-tested; compaction failed its back-test |
 
 That is 14 live runs across the compaction, `/clear` and client tests, plus a 9-run cache-expiry test and a 5-run `/compact` test. Everything is in `outputs/live_experiments.json` (numbers only, no prompts or paths). Modeled numbers come from the caching simulator in `src/cc_usage_study/` and are in `outputs/summary.json`. No live API calls are needed to check any of it.
-
-| Claim | Source | Status |
-| --- | --- | --- |
-| Stale resume after 10+ min about 10 times a fresh start; warm resume with 97k history 1.5 times | `ttl_runs` | Measured: 3 stale and fresh pairs, 1 warm run |
-| `/compact` before a break 2.5 times a fresh start, after a break about 10 times | `compact_runs` | Measured: 3 before, 2 after, same fixes as `ttl_runs` |
-| Warm session -27.7% against `/clear` | `clear_vs_warm` | Measured, n=1, tiny history |
-| Hidden summary usage 11.8% to 25.5%; lower triggers tie or lose on a ~270k session | `compaction`, 5 arms | Measured, n=1, no pauses, two arms fail the 15% gate |
-| Client multipliers 1.19x and 1.80x | `client_comparison` | Measured, n=1. Desktop is a floor |
-| Trigger formula and idle-compaction conditions | Claude Code v2.1.325 binary | Read from the binary; live `preTokens` overshoot it by 0.3% to 55.5% |
-| Pause curves, cron, 1-hour cache, workflow sweet spots | `outputs/summary.json` | Modeled. Short-task caching back-tested; compaction failed its back-test |
 
 > **Units.** "Usage" is **cache-weighted usage**: tokens weighted the way the API bills them, on Opus 5.5 `1 / 1.25 / 2 / 0.05 / 5` (input / 5-minute cache write / 1-hour cache write / cache read / output). Raw token counts mislead: a warm and a stale resume below moved the same 294k tokens and differed 6.5x in usage.
 
@@ -180,7 +196,7 @@ Same Opus 5.5, effort medium, identical 3-line `CLAUDE.md`, no user MCP servers,
 | Inline / deferred tools | 14 / 15 | 15 / 82 | 35 / 82 |
 | Fix usage vs CLI | 1.00x | **1.19x** (1.17x to 1.20x by model) | **1.80x** (1.71x to 1.92x by model) |
 
-T3 Code runs Claude Code through the Agent SDK and adds 67 deferred tools plus a longer system prompt. Desktop's Code tab carries a whole app (35 inline tools, 3.5 times the system prompt) and writes no `cost_state` row, so its number is a floor. Full table: `benchmarks/client_comparison.md`.
+T3 Code runs Claude Code through the Agent SDK and adds 67 deferred tools plus a longer system prompt. Desktop's Code tab carries a whole app (35 inline tools, 3.5 times the system prompt) and writes no `cost_state` row, so its number is a floor. We did not measure the Claude chat app. Full table: `benchmarks/client_comparison.md`.
 
 ### 5. Where compaction actually fires
 

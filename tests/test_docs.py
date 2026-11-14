@@ -74,17 +74,30 @@ def test_no_private_material_in_public_pages():
     assert offenders == []
 
 
-def test_readme_leads_with_the_hero_and_rules_and_embeds_the_charts():
+def test_readme_leads_with_practices_and_embeds_the_charts():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert readme.startswith("# Claude Code usage: best practices and anti-patterns")
     hero = readme.index("outputs/figures/hero_coffee_break.png")
-    rules = readme.index("## The rules")
-    measured = readme.index("## How we measured")
-    assert hero < rules < measured
-    assert "(#how-we-measured)" in readme[:measured]
-    # The top stays short: title, hero, rules and copy-paste fit in roughly one screen.
-    assert readme[:measured].count("\n") < 60
-    assert readme.index("### 1. The coffee-break tax") > measured
+    practices = readme.index("## Best practices")
+    antipatterns = readme.index("## Anti-patterns")
+    myths = readme.index("## Myths and unknowns")
+    copy_paste = readme.index("## Copy-paste")
+    check = readme.index("## Check your own usage")
+    evidence = readme.index("## The evidence")
+    assert hero < practices < antipatterns < myths < copy_paste < check < evidence
+    # The top stays short: title, hero, lists and copy-paste fit in roughly one screen.
+    assert readme[:evidence].count("\n") < 70
+    assert "cc_usage_study.analyze" in readme[check:evidence]
+    assert "--summary" in readme[check:evidence]
+    assert readme.index("### 1. The coffee-break tax") > evidence
+    assert "### Does the model hold up?" in readme[evidence:]
+    # Promote the CLI / T3 Code over Desktop, without inventing a chat-app number.
+    top = readme[:evidence]
+    assert "plain Claude Code CLI" in top
+    assert "T3 Code" in top
+    assert "Claude Desktop's Code tab" in top
+    assert "We did not measure the Claude chat app." in top
+    assert "1.19x" in top and "1.80x" in top
     for figure in (
         "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",
@@ -93,6 +106,7 @@ def test_readme_leads_with_the_hero_and_rules_and_embeds_the_charts():
         "live_compaction_arms.png",
         "live_clear_vs_warm.png",
         "live_client_comparison.png",
+        "model_vs_measured.png",
         "scenario_comparison.png",
         "eoq_curve.png",
         "context_sawtooth.png",
@@ -101,12 +115,63 @@ def test_readme_leads_with_the_hero_and_rules_and_embeds_the_charts():
         assert (ROOT / "outputs" / "figures" / figure).is_file(), figure
     assert "ttl_cliff" not in readme
     # Caveats move below the fold but must still be there.
-    details = readme[measured:]
+    details = readme[evidence:]
     assert "cache-weighted" in details
     assert "1 / 1.25 / 2 / 0.05 / 5" in details
     assert "Honest limits" in details
     assert "n=1" in details
-    assert "(modeled)" in readme[:measured]
+    assert "(modeled)" in readme[:evidence]
+
+
+def _github_slug(title: str) -> str:
+    text = title.replace("`", "").lower()
+    cleaned = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in text)
+    return re.sub(r"-+", "-", re.sub(r"\s+", "-", cleaned.strip()))
+
+
+def test_readme_internal_anchors_resolve():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    # Headings outside fenced code blocks.
+    slugs: list[str] = []
+    counts: dict[str, int] = {}
+    in_fence = False
+    for line in readme.splitlines():
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not line.startswith("#"):
+            continue
+        title = line.lstrip("#").strip()
+        if not title:
+            continue
+        base = _github_slug(title)
+        n = counts.get(base, 0)
+        slugs.append(base if n == 0 else f"{base}-{n}")
+        counts[base] = n + 1
+    missing = []
+    for match in re.finditer(r"\]\((#[^)]+)\)", readme):
+        anchor = match.group(1)[1:]
+        if anchor not in slugs:
+            missing.append(anchor)
+    assert missing == []
+    for required in (
+        "best-practices",
+        "anti-patterns",
+        "myths-and-unknowns",
+        "check-your-own-usage",
+        "the-evidence",
+        "1-the-coffee-break-tax",
+        "compact-before-or-after-the-break",
+        "does-this-apply-to-you",
+        "does-the-model-hold-up",
+        "2-compaction-measured-live",
+        "3-clear-vs-a-warm-session",
+        "4-three-clients-one-bugfix",
+        "6-hypotheses-compaction-settings-and-sweet-spots",
+        "honest-limits",
+        "reproduce",
+    ):
+        assert required in slugs, required
 
 
 def test_docs_reconcile_the_compound_trigger():
