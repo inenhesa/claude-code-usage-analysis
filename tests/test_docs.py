@@ -98,11 +98,11 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "### Does the model hold up?" in readme[evidence:]
     # Promote the CLI / T3 Code over Desktop, without inventing a chat-app number.
     top = readme[:evidence]
-    assert "plain Claude Code CLI" in top
+    assert "Use the Claude Code CLI" in top
     assert "T3 Code" in top
-    assert "Claude Desktop's Code tab" in top
-    assert "We did not measure the Claude chat app." in top
-    assert "1.19 times the CLI" in top and "at least 1.80 times the CLI" in top
+    assert "Desktop Code tab" in top
+    assert "We did not test the Claude chat app." in top
+    assert "1.19x the CLI" in top and "at least 1.80x" in top
     for figure in (
         "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",

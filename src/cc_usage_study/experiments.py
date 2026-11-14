@@ -43,6 +43,7 @@ FIGURE_NAMES = (
     "live_compaction_arms.png",
     "live_clear_vs_warm.png",
     "hero_coffee_break.png",
+    "live_mid_session.png",
 )
 
 CLI_VERSION = "2.1.325"
@@ -1218,6 +1219,50 @@ def figure_hero(data: dict, path: Path, plt) -> None:
     _save(fig, path, plt)
 
 
+def figure_mid_session(data: dict, path: Path, plt) -> None:
+    """Long tool output (6 turns vs a 1-line summary) and mid-session changes (next turn vs a normal turn)."""
+    tools = data["tool_output_runs"]
+    head = tools["headline_by_read_weight"]["0.05"]
+    extra = tools["context"]
+    mid = data["mid_session_runs"]["summary"]
+    fig, (left, right) = plt.subplots(1, 2, figsize=(16, 5.6), gridspec_kw={"wspace": 0.75})
+    left_rows = [
+        ("1-line summary", 1.0, GREEN, 1.0),
+        (f"Test log, +{extra['long']['extra_tool_result_tokens']:,} tokens", head["long"]["all_6_turns_vs_short"], RED, 0.55),
+        (f"Long test log, +{extra['huge']['extra_tool_result_tokens']:,} tokens", head["huge"]["all_6_turns_vs_short"], RED, 1.0),
+    ]
+    right_rows = [
+        ("No change", 1.0, GREEN, 1.0),
+        ("Change effort", mid["effort_high"]["vs_control_mean"], GREEN, 0.55),
+        ("Edit CLAUDE.md", mid["claude_md_edit"]["vs_control_mean"], GREEN, 0.55),
+        ("Add an MCP server", mid["mcp_add"]["vs_control_mean"], GREEN, 0.55),
+        ("Turn off one tool", mid["deny_tool"]["vs_control_mean"], RED, 1.0),
+    ]
+    for ax, rows, title, xmax in (
+        (left, left_rows, "Test output: usage of that turn and the next 5", 2.0),
+        (right, right_rows, "Change between turns: usage of the next turn", mid["deny_tool"]["vs_control_mean"] * 1.25),
+    ):
+        for index, (label, value, color, alpha) in enumerate(rows):
+            y = len(rows) - 1 - index
+            ax.barh(y, value, color=color, alpha=alpha, height=0.62, zorder=3)
+            text = f"{value:.0f}x" if value >= 10 else f"{value:.2f}x"
+            ax.text(value + xmax * 0.015, y, text, va="center", ha="left", fontsize=17, fontweight="bold", color=color)
+        ax.set_yticks(range(len(rows)))
+        ax.set_yticklabels([label for label, *_ in reversed(rows)], fontsize=13)
+        ax.set_xlim(0, xmax)
+        ax.set_xticks([])
+        for side in ("top", "right", "bottom"):
+            ax.spines[side].set_visible(False)
+        ax.spines["left"].set_color(AXIS)
+        ax.tick_params(length=0, pad=8)
+        ax.set_title(title, loc="left", fontsize=15, pad=12)
+    fig.text(0.02, -0.04,
+             "Opus 5.5, Claude Code 2.1.325, 5-minute cache, warm. Left: 2 runs per bar, about 17,000 tokens of context. "
+             "Right: 3 runs per bar, 2 for the tool, about 44,000 tokens of context.",
+             ha="left", va="top", fontsize=11, color=MUTED)
+    _save(fig, path, plt)
+
+
 def write_figures(data: dict, out: Path) -> list[Path]:
     import matplotlib
 
@@ -1233,6 +1278,7 @@ def write_figures(data: dict, out: Path) -> list[Path]:
     figure_compaction(data, paths[1], plt)
     figure_clear_vs_warm(data, paths[2], plt)
     figure_hero(data, paths[3], plt)
+    figure_mid_session(data, paths[4], plt)
     return paths
 
 
@@ -1261,7 +1307,7 @@ def main(argv: list[str] | None = None) -> int:
         if previous.is_file():
             # The cache-expiry and /compact runs come from separate runners; keep them across a rebuild.
             old = load(previous)
-            for key in ("ttl_runs", "compact_runs"):
+            for key in ("ttl_runs", "compact_runs", "tool_output_runs", "mid_session_runs"):
                 if key not in data and old.get(key):
                     data[key] = old[key]
         (out / DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

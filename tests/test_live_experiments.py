@@ -299,3 +299,33 @@ def test_compact_runs_carry_no_dollars_or_ids():
     assert "session_id" not in text and "sessionId" not in text
     assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", text)
     assert "/" + "tmp/" not in text and "/" + "home/" not in text
+
+
+def test_tool_output_and_mid_session_runs_hold():
+    data = _data()
+    tools, mid = data["tool_output_runs"], data["mid_session_runs"]
+    for block in (tools, mid):
+        assert block["model"] == "claude-opus-5-5"
+        assert block["invariants"]["one_hour_cache_write_tokens"] == 0
+        assert block["invariants"]["max_gap_between_turns_s"] < 300
+        text = json.dumps(block)
+        assert "usd" not in text.lower()
+        assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", text)
+        assert "/" + "tmp/" not in text and "/" + "home/" not in text
+    assert all(len(runs) == 2 for runs in tools["arms"].values())
+    for runs in tools["arms"].values():
+        for run in runs:
+            assert run["answer_correct"]
+            for part in ("dump_turn", "next_5_turns"):
+                assert abs(weighted_units(run[part]["tokens"], 0.05) - run[part]["units"]) <= 0.5
+    head = tools["headline_by_read_weight"]["0.05"]
+    assert head["long"]["all_6_turns_vs_short"] == 1.15
+    assert head["huge"]["all_6_turns_vs_short"] == 1.64
+    summary = mid["summary"]
+    assert summary["deny_tool"]["n"] == 2 and summary["deny_tool"]["cache_hit_pct_range"] == [0.0, 0.0]
+    assert summary["deny_tool"]["vs_control_mean"] > 20
+    for key in ("effort_high", "effort_back", "claude_md_edit", "mcp_add"):
+        assert summary[key]["n"] == 3
+        assert summary[key]["cache_hit_pct_range"][0] > 99
+        assert summary[key]["vs_control_mean"] < 1.2
+    assert mid["model_switch"]["measured"] is False

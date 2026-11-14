@@ -6,12 +6,14 @@
 
 ## Best practices
 
-- **Leaving for a break?** Run [`/compact`](https://code.claude.com/docs/en/commands) first. That command shrinks your chat history into a short summary. The next fix then used 2.5 times as much usage as a new session (the compact step is included), not about 10 times. (tested 3 times) [(details)](#compact-before-or-after-the-break)
-- **Already back after a break?** Start a new session with [`/clear`](https://code.claude.com/docs/en/commands), which wipes the current chat. Paste a 3-line handoff: the goal, what you already did, and what to do next. Do not run `/compact` after the break. That still used about 10 times as much usage as a new session. (tested 3 times for continue, 2 times for `/compact`) [(details)](#1-the-coffee-break-tax)
-- **Quick related fixes, one after another?** Stay in the same session. That used 28% less usage than running `/clear` between each fix. (tested 1 time, and only with a small history) [(details)](#3-clear-vs-a-warm-session)
-- **Scheduled `claude -p` jobs?** `claude -p` runs Claude Code from a script, with no interactive chat. Start a new session every run, and keep notes in a file. Do not use `--resume` to continue the last session. That costs about 3 times as much. (estimate) Not tested live yet. [(details)](#1-the-coffee-break-tax)
-- **Write code in the plain Claude Code CLI.** It used the least of the three tools we measured. T3 Code is a close option, at 1.19 times the CLI. Claude Desktop's Code tab used at least 1.80 times the CLI. Its first request sent 39,749 tokens. The CLI sent 19,528. We did not measure the Claude chat app. (tested 1 time) [(details)](#4-three-clients-one-bugfix)
-- **Judge usage by cache-weighted tokens, not raw counts.** Cache-weighted usage counts tokens the way Anthropic charges for them. One continue after 3 minutes and one after 10 minutes both moved about 294,000 raw tokens, but usage differed by 6.5 times. [(details)](#the-evidence)
+- **Before a break, run [`/compact`](https://code.claude.com/docs/en/commands).** It replaces the chat history with a short summary. The next fix used 2.5x. Without it, it used about 10x. (3 runs) [(details)](#compact-before-or-after-the-break)
+- **After a break, start a new session.** Run [`/clear`](https://code.claude.com/docs/en/commands) and write 3 lines: the goal, what is done, what is next. Running `/compact` after the break does not help: it still used about 10x. (3 runs, 2 for `/compact`) [(details)](#1-the-coffee-break-tax)
+- **For several small related fixes in a row, keep the same session.** It used 28% less than running `/clear` between fixes. (1 run, small history only) [(details)](#3-clear-vs-a-warm-session)
+- **For scheduled `claude -p` jobs, start a new session each run.** Keep notes in a file. Continuing the last session with `--resume` costs about 3x. (estimate) Not tested live. [(details)](#1-the-coffee-break-tax)
+- **Keep tool output short.** Long output stays in the chat and is sent again on every later turn. A failing test log of about 750 tokens made that turn and the next 5 use 15% more than a 1-line summary. A log of about 5,000 tokens made them use 64% more. (2 runs each) [(details)](#7-long-tool-output)
+- **Do not turn off a tool or switch models in the middle of a task.** Turning off one tool made the next turn use 22x a normal turn, because the whole chat was processed again. Anthropic's docs say switching models does the same. We did not test that. (2 runs) [(details)](#8-switching-models-or-effort)
+- **Use the Claude Code CLI.** It used the least of the three tools we tested. T3 Code used 1.19x the CLI. The Desktop Code tab used at least 1.80x. Its first request was about twice as large (39,749 vs 19,528 tokens). We did not test the Claude chat app. (1 run) [(details)](#4-three-clients-one-bugfix)
+- **Raw token counts are misleading.** Two runs with the same raw tokens (about 294,000) differed 6.5x in usage, because cached tokens cost far less. [(details)](#the-evidence)
 
 ## Check your own habits: paste this into Claude Code
 
@@ -55,6 +57,7 @@ To run only the analyzer yourself: `python3 -m cc_usage_study.analyze ~/.claude/
 
 - Our calculation says `--autocompact 180000` uses about 43% less. In a live test on a 270,000-token session, it only tied the default. We ran that test once, with no long pauses. ([details](#6-hypotheses-compaction-settings-and-sweet-spots))
 - We do not yet know the best compact settings for very long sessions. Our calculation failed when we checked it against the live tests. ([details](#does-the-model-hold-up))
+- Editing `CLAUDE.md`, adding an MCP server, or changing effort between turns did not break the cache. The next turn used about the same as a normal turn (0.95x to 1.08x on average). (3 runs each, Claude Code 2.1.325) ([details](#9-editing-claudemd-or-adding-an-mcp-server))
 - Fewer raw tokens is not the same as less usage. One setting sent 63% fewer raw tokens than the default, and used 25.2% more. ([details](#2-compaction-measured-live))
 
 A "break" means you were away longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching). That cache lasts **5 minutes** if you use an API key or usage credits, and **1 hour** if you use a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan). We measured 10 to 13 minute breaks on the 5-minute cache. ([does this apply to you?](#does-this-apply-to-you))
@@ -77,7 +80,7 @@ Done: tests in tests/test_invoice.py reproduce it.
 Next: patch money.py, run the suite.
 ```
 
-**Contents:** [best practices](#best-practices) · [check your habits](#check-your-own-habits-paste-this-into-claude-code) · [the evidence](#the-evidence) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [`/clear`](#3-clear-vs-a-warm-session) · [clients](#4-three-clients-one-bugfix) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
+**Contents:** [best practices](#best-practices) · [check your habits](#check-your-own-habits-paste-this-into-claude-code) · [the evidence](#the-evidence) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [`/clear`](#3-clear-vs-a-warm-session) · [clients](#4-three-clients-one-bugfix) · [tool output](#7-long-tool-output) · [models and effort](#8-switching-models-or-effort) · [`CLAUDE.md` and MCP](#9-editing-claudemd-or-adding-an-mcp-server) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
 
 ---
 
@@ -92,10 +95,12 @@ This is the data behind the rules above. You do not need to read it to use the r
 | A continued session used 27.7% less than `/clear` | Same 3 fixes, history under 21,000 tokens | Tested live, `clear_vs_warm`, n=1 |
 | Hidden summary usage was 11.8% to 25.5%. Lower compact triggers tied or lost on a session of about 270,000 tokens. | 24-module migration over 4 phases, about 270,000 tokens at peak, no long pauses | Tested live, `compaction`, n=1 per setting, 5 settings; two settings fail the 15% gate |
 | T3 Code used 1.19 times the CLI. Desktop's Code tab used at least 1.80 times the CLI. | Identical 3-line `CLAUDE.md`, no user MCP servers | Tested live, `client_comparison`, n=1 per client |
+| A 750-token test log made that turn and the next 5 use 1.15 times as much as a 1-line summary. A 5,000-token log: 1.64 times. | Opus 5.5, warm cache, about 17,000 tokens of context, 1 test run then 5 short questions | Tested live, `tool_output_runs`: 2 runs per arm, 3 arms |
+| Turning off one tool between turns made the next turn use 22 times a normal turn. Changing effort, editing `CLAUDE.md`, or adding an MCP server did not break the cache. | Opus 5.5, warm cache, about 44,000 tokens of context, one change per turn | Tested live, `mid_session_runs`: 3 sessions, 2 for the tool change. Model switch: docs only |
 | The compact trigger formula, and when idle compact runs | Claude Code v2.1.325 binary | Read from the binary. Live `preTokens` went 0.3% to 55.5% past the formula |
 | Pause curves, cron jobs, the 1-hour cache, and compact settings for long sessions | Caching simulator | Estimate, `outputs/summary.json`. The short-task cache math was checked against live runs. The long-session compact calculation failed that check |
 
-That is 14 live runs across the compact, `/clear`, and client tests, plus a 9-run cache-expiry test and a 5-run `/compact` test. Everything is in `outputs/live_experiments.json` (numbers only, no prompts or paths). Estimated numbers come from the caching simulator in `src/cc_usage_study/` and are in `outputs/summary.json`. You can check all of this without making live API calls.
+That is 14 live runs across the compact, `/clear`, and client tests, plus a 9-run cache-expiry test, a 5-run `/compact` test, a 6-session tool-output test, and a 3-session test of changes between turns. Everything is in `outputs/live_experiments.json` (numbers only, no prompts or paths). Estimated numbers come from the caching simulator in `src/cc_usage_study/` and are in `outputs/summary.json`. You can check all of this without making live API calls.
 
 > **Units.** "Usage" is **cache-weighted usage**: tokens counted the way the API charges for them. On Opus 5.5 the weights are `1 / 1.25 / 2 / 0.05 / 5` (new input / 5-minute cache write / 1-hour cache write / cache read / output). Raw token counts can mislead. Below, one continue after 3 minutes and one after 10 minutes both moved the same 294,000 tokens, but usage differed by 6.5 times.
 
@@ -293,11 +298,54 @@ The main idea: for a long session headed past 300,000 tokens, `claude --autocomp
 
 ![Prompt size through a 60-turn session at the default, and at a 160,000 fire point.](outputs/figures/context_sawtooth.png)
 
+### 7. Long tool output
+
+This section shows what a long test log costs after Claude has read it.
+
+![Left: a test log in the chat makes that turn and the next 5 use 1.15x (750 tokens) or 1.64 times (5,000 tokens) compared with a 1-line summary. Right: the next turn after a change. Changing effort, editing CLAUDE.md, or adding an MCP server stays near 1x. Turning off one tool is 22x.](outputs/figures/live_mid_session.png)
+
+A new session runs a failing test suite once and reports the result in one line. Then it answers 5 short questions with no tools, a few seconds apart, so the cache stays warm. Only the test output changes: a 1-line summary (48 tokens), a normal failing pytest log (803 tokens), or a long log with tracebacks and captured logs (8,602 tokens). Claude Code cut the long log to about 10,000 characters before it went into the chat. Opus 5.5, n=2 per arm, about 17,000 tokens of context. Every run named the same 3 failing tests.
+
+| Test output | Extra tokens in the chat | That turn | Next 5 turns | All 6 turns |
+| --- | ---: | ---: | ---: | ---: |
+| 1-line summary | 0 | 1.00x | 1.00x | 1.00x |
+| Normal log | 755 | 1.15x | 1.16x | **1.15x** |
+| Long log | 5,051 | 1.88x | 1.33x | **1.64 times** |
+
+The log is written to the cache once, then read again on every later turn. Part of the gap in the next 5 turns is longer answers after a long log. Without output tokens the gap is 1.08x and 1.29x. These sessions were small, so the log is a large share of each turn. In a bigger session the share is smaller, but the extra tokens per turn stay the same. After a break the cache expires, and the log is written to the cache again with the rest of the chat.
+
+### 8. Switching models or effort
+
+This section checks whether changing settings between turns throws the cache away.
+
+**Switching models: from Anthropic's docs, not measured.** The [Claude Code docs](https://code.claude.com/docs/en/prompt-caching#switching-models) say each model has its own cache. After `/model`, the next request reads the whole chat with no cache hits. Our live runs use only Opus 5.5, so we did not test it.
+
+**The closest test on Opus 5.5: turning off one tool.** We turned off one built-in tool (`--disallowedTools Edit`) between turns. That changes the tool list at the very start of the prompt, so nothing after it matches the cache. This is the same effect the docs describe for a model switch. The next turn read 0% from the cache, wrote about 43,700 tokens again, and used **22x** a normal turn (21.8x to 22.2x, n=2).
+
+**Changing effort did not break the cache.** Medium to high: 0.98x of a normal turn. High back to medium: 0.95x. 99.7% or more was read from the cache (n=3). The docs say Opus 5.5 keeps the cache when effort changes. On many older models it does not.
+
+Each session read 2 log files (about 44,000 tokens of context), then answered one short question per turn with no tools. Each turn was a new `claude -p --resume` run a few seconds after the last one. One thing changed before each test turn. Control turns changed nothing. Each change is compared with the average of the control turns in the same session.
+
+### 9. Editing `CLAUDE.md` or adding an MCP server
+
+This section checks two changes we expected to break the cache. They did not.
+
+| Change between turns | Next turn compared with a normal turn | Read from cache |
+| --- | ---: | ---: |
+| No change | 1.00x | 99.1% to 99.9% |
+| Change effort, medium to high | 0.98x (0.96x to 1.00x) | 99.7% |
+| Edit one line of `CLAUDE.md` | 1.08x (1.00x to 1.19x) | 99.5% |
+| Add an MCP server with 1 tool | 0.98x (0.97x to 1.00x) | 99.6% |
+| Turn off one built-in tool | **22x** (21.8x to 22.2x) | 0% |
+
+Claude Code 2.1.325 did not change the start of the prompt for either change. It added the new `CLAUDE.md` at the end of the chat as a note that the instructions changed. It listed the new MCP tool at the end as a deferred tool (tool search). So the rest of the chat still matched the cache. An edit to `CLAUDE.md` only reaches Claude after a restart, `/clear`, or `/compact` ([docs](https://code.claude.com/docs/en/prompt-caching#editing-claude-md-mid-session)). We tested the restart case: `--resume` in a new process. The docs say that with tool search turned off, adding an MCP server does break the cache. We did not test that. n=3 per change, one session size, Opus 5.5.
+
 ## Honest limits
 
 This section lists what this study cannot claim.
 
 - **Small n.** Most settings were tested once (n=1). The coffee-break and `/compact` tests ran 2 to 3 times. We report ranges, not confidence intervals.
+- **Small sessions for the newest tests.** The tool-output and between-turn tests used about 17,000 and 44,000 tokens of context, with a warm cache.
 - **One model, small tasks, one cache time limit.** All live runs used Opus 5.5 on the 5-minute cache. 1-hour cache numbers are estimates.
 - **Ratios compared with a small fix look larger.** The 10 times figure is compared with a 3-call fix. The extra cost per carried token is the number that still holds for a bigger next task.
 - **These units are not your subscription bill.** Units follow API list prices. Subscription limits use weights Anthropic does not publish.
