@@ -1210,11 +1210,10 @@ def figure_hero(data: dict, path: Path, plt) -> None:
         ax.spines[side].set_visible(False)
     ax.spines["left"].set_color(AXIS)
     ax.tick_params(length=0, pad=10)
-    fig.suptitle(f"Same quick bugfix, same {history / 1000:.0f}k-token Claude Code session", x=0.02, y=1.02,
-                 ha="left", fontsize=20)
+    fig.suptitle(f"Usage for the same small fix in a {history / 1000:.0f}k-token session (fresh session = 1x)",
+                 x=0.02, y=1.02, ha="left", fontsize=20)
     fig.text(0.02, -0.02,
-             f"Usage relative to a fresh start, /compact call included. Claude Opus 5.5, 5-minute cache, measured live: {note}. "
-             "All fixes passed their tests.",
+             f"10x = 10 times the usage of the same fix in a fresh session. Opus 5.5, 5-minute cache, measured live: {note}.",
              ha="left", va="top", fontsize=11, color=MUTED)
     _save(fig, path, plt)
 

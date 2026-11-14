@@ -76,7 +76,7 @@ def test_no_private_material_in_public_pages():
 
 def test_readme_leads_with_the_hero_and_rules_and_embeds_the_charts():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert readme.startswith("# Your Claude Code coffee break costs 10x")
+    assert readme.startswith("# Claude Code usage: best practices and anti-patterns")
     hero = readme.index("outputs/figures/hero_coffee_break.png")
     rules = readme.index("## The rules")
     measured = readme.index("## How we measured")

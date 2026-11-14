@@ -1,16 +1,16 @@
-# Your Claude Code coffee break costs 10x
+# Claude Code usage: best practices and anti-patterns
 
-**Come back to a big session after a 10-minute break, resume it, and the next fix uses about 10 times what a fresh `/clear` start uses.** We measured it on real Claude Opus 5.5 runs.
+**Step away from a big Claude Code session for 10 minutes, come back and resume it, and your next small fix uses about 10 times as much usage as the same fix in a fresh session.** Usage here means tokens weighted the way Anthropic bills them. Your history dropped out of Claude's 5-minute [prompt cache](https://code.claude.com/docs/en/prompt-caching) during the break, so all of it gets processed again at full price. Measured on real Claude Opus 5.5 runs.
 
 ![Same quick bugfix on a 97k-token session: fresh start 1x, resume after 3 minutes 1.5x, /compact then a break 2.5x, resume after a 10-minute break 10x, /compact after the break 10x](outputs/figures/hero_coffee_break.png)
 
 ## The rules
 
-- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x a fresh start, compact call included, not 10x. (n=3)
-- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff. Resuming used ~10x more, and so did `/compact` after the break. (resume n=3, `/compact` n=2)
+- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x the usage of a fresh session (compact call included), not 10x. (n=3)
+- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff. Resuming used about 10x the usage of a fresh session, and so did `/compact` after the break. (resume n=3, `/compact` n=2)
 - **Quick related fixes back to back?** Stay in the session. It used 28% less than `/clear` between each. (n=1)
 - **Scheduled `claude -p` jobs?** Fresh session every run, state in a file. `--resume` costs ~3x. (modeled)
-- **Pick the plain CLI.** The same fix used 1.19x in T3 Code and 1.80x in Claude Desktop's Code tab. (n=1)
+- **Pick the plain CLI.** The same fix used 1.19x as much in T3 Code and 1.80x in Claude Desktop's Code tab, compared with the CLI. (n=1)
 
 "Break" means longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching): **5 minutes** on an API key or usage credits, **1 hour** on a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan). Measured with 10 to 13 minute breaks on the 5-minute cache ([does this apply to you?](#does-this-apply-to-you)).
 
