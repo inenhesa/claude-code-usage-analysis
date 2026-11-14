@@ -2,17 +2,18 @@
 
 **Come back to a big session after a 10-minute break, resume it, and the next fix uses about 10 times what a fresh `/clear` start uses.** We measured it on real Claude Opus 5.5 runs.
 
-![Same quick bugfix on a 97k-token session: fresh start 1x, resume after 3 minutes 1.5x, resume after a 10-minute break 10x](outputs/figures/hero_coffee_break.png)
+![Same quick bugfix on a 97k-token session: fresh start 1x, resume after 3 minutes 1.5x, /compact then a break 2.5x, resume after a 10-minute break 10x, /compact after the break 10x](outputs/figures/hero_coffee_break.png)
 
 ## The rules
 
-- **Back after a break?** `/clear` and paste a 3-line handoff. Resuming after 10 minutes used ~10x more.
+- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x a fresh start, compact call included, not 10x.
+- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff. Resuming used ~10x more, and so did `/compact` after the break.
 - **Quick related fixes back to back?** Stay in the session. It used 28% less than `/clear` between each.
 - **Scheduled `claude -p` jobs?** Fresh session every run, state in a file. `--resume` costs ~3x (modeled).
 - **Long session headed past 300k tokens?** `claude --autocompact 180000`. About 43% less (modeled).
 - **Pick the plain CLI.** The same fix used 1.19x in T3 Code and 1.80x in Claude Desktop's Code tab.
 
-"Break" means longer than the prompt cache: **5 minutes** on an API key or credits, **1 hour** on a subscription.
+"Break" means longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching): **5 minutes** on an API key or usage credits, **1 hour** on a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan).
 
 ## Copy-paste
 
@@ -25,36 +26,50 @@ claude -p "$(cat .agent/handoff.md) Continue the nightly triage." --output-forma
 ```
 
 ```text
+# Before a break
+/compact Keep: the open issue, files touched, test command
+
+# Back after a break, new task
 /clear
 Goal: fix the currency rounding in invoices.
 Done: tests in tests/test_invoice.py reproduce it.
 Next: patch money.py, run the suite.
 ```
 
-**[How we measured](#how-we-measured)** · [the coffee-break test](#1-the-coffee-break-tax) · [compaction](#2-compaction-measured-live) · [clients](#4-three-clients-one-bugfix)
+**[How we measured](#how-we-measured)** · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [compaction](#2-compaction-measured-live) · [clients](#4-three-clients-one-bugfix)
 
 ---
 
 ## How we measured
 
-Every number is either **measured** from the raw session logs of 14 live Opus 5.5 runs plus a 9-run cache-expiry test (`outputs/live_experiments.json`), or **modeled** by the caching simulator in `src/cc_usage_study/` (`outputs/summary.json`). No live API calls are needed to check any of it.
+Every number is either **measured** from the raw session logs of 14 live Opus 5.5 runs plus a 9-run cache-expiry test and a 5-run `/compact` test (`outputs/live_experiments.json`), or **modeled** by the caching simulator in `src/cc_usage_study/` (`outputs/summary.json`). No live API calls are needed to check any of it.
 
 > **Units.** "Usage" is **cache-weighted usage**: tokens weighted the way the API meters them, on Opus 5.5 `1 / 1.25 / 2 / 0.05 / 5` (input / 5-minute cache write / 1-hour cache write / cache read / output). Read weights differ by model (0.1x on Sonnet 5 and Opus 4.7, 0.025x on Fable and Mythos), so results are also given across that range where it moves the answer. The subscription's five-hour and weekly meter is **not measured**: Anthropic does not publish its weights.
 
-**Honest limits.** Each live condition ran once (n=1), on one model, with small tasks and a 5-minute cache. The breaks were 10 to 13 minutes, so a break just past 5 minutes was not measured. Two of the five compaction arms failed the repo's own validity gate. The 1-hour cache, cron and sweet-spot numbers are modeled.
+**Honest limits.** Most live conditions ran once (n=1; the `/compact` test ran 2 and 3 times), on one model, with small tasks and a 5-minute cache. The breaks were 10 to 13 minutes, so a break just past 5 minutes was not measured. Two of the five compaction arms failed the repo's own validity gate. The 1-hour cache, cron and sweet-spot numbers are modeled.
 
 | Claim | Source | Status |
 | --- | --- | --- |
 | Stale resume after 10+ min about 10 times a fresh start; warm resume with 97k history 1.5 times | `ttl_runs` | Measured: 3 stale and fresh pairs, 1 warm run |
+| `/compact` before a break 2.5 times a fresh start, after a break about 10 times | `compact_runs` | Measured: 3 before, 2 after, same fixes as `ttl_runs` |
 | Warm session -27.7% against `/clear` | `clear_vs_warm` | Measured, n=1, tiny history |
 | Hidden summary usage 11.8% to 25.5%; lower triggers tie or lose on a ~270k session | `compaction`, 5 arms | Measured, n=1, no pauses, two arms fail the 15% gate |
 | Client multipliers 1.19x and 1.80x | `client_comparison` | Measured, n=1. Desktop is a floor |
 | Trigger formula and idle-compaction conditions | Claude Code v2.1.325 binary | Read from the binary, checked against live `preTokens` |
 | Pause curves, cron, 1-hour cache, workflow sweet spots | `outputs/summary.json` | Modeled |
 
+### Anthropic docs
+
+- [Prompt caching in Claude Code](https://code.claude.com/docs/en/prompt-caching): which requests get the 5-minute or 1-hour TTL, and how to choose it
+- [Prompt caching on the API](https://platform.claude.com/docs/en/build-with-claude/prompt-caching): cache lifetime, 1-hour cache, write and read multipliers ([pricing](https://platform.claude.com/docs/en/about-claude/pricing))
+- [Manage costs in Claude Code](https://code.claude.com/docs/en/costs) and [context window](https://code.claude.com/docs/en/context-window)
+- [Commands](https://code.claude.com/docs/en/commands): `/compact`, `/clear`, `/usage`
+- [Claude Code with a Pro, Max or Ultra plan](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan) (five-hour and weekly limits) and [usage limit best practices](https://support.claude.com/en/articles/9797557-usage-limit-best-practices)
+- [API rate limits](https://platform.claude.com/docs/en/api/rate-limits)
+
 ### 1. The coffee-break tax
 
-Claude Code caches the prompt prefix. Inside the cache window a resumed session re-reads its history at the cheap read weight. After the window, every old token is **written to the cache again** at full write weight.
+Claude Code [caches the prompt prefix](https://code.claude.com/docs/en/prompt-caching) ([API caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). Inside the cache window a resumed session re-reads its history at the cheap read weight. After the window, every old token is **written to the cache again** at full write weight.
 
 We built a session to about 97k tokens (5-minute cache), walked away for 10 to 13 minutes, and resumed it for a quick bugfix. Each time we also ran the same fix in a brand-new session. Three different fixes, all passed their tests.
 
@@ -68,6 +83,20 @@ We built a session to about 97k tokens (5-minute cache), walked away for 10 to 1
 - The warm and stale resumes moved almost the same tokens (294k) but the stale one used 6.5 times more. Token counts alone would call them a tie.
 - Even warm, 97k of history was too much to drag into an unrelated small fix. The model says a warm resume only pays while history is under about 24k tokens.
 - A bigger next task would shrink the multiple, because the fresh session's own work would weigh more. The extra cost per carried token (about 1.4 units) does not shrink.
+
+#### `/compact` before or after the break
+
+We also tried [`/compact`](https://code.claude.com/docs/en/commands) on the same ~97k-token sessions, then the same quick fix. Headless it is just `claude -p "/compact Keep: the 3 issues found, files touched, test command" --resume SESSION`; the transcript gets a `compact_boundary` with `trigger: manual`.
+
+| Same quick fix, fresh `/clear` = 1 | `/compact` call | Next fix | Total |
+| --- | ---: | ---: | ---: |
+| `/compact` right away (cache warm), then a 6.5 to 11 min break, n=3 | 1.1 to 1.2 | 1.3 | **2.5 times** (2.49 to 2.53) |
+| Break first (cache cold), then `/compact`, n=2 | 8.0 to 8.8 | 1.2 to 1.5 | **9.3 and 10.2 times** |
+| Plain resume after the break (`ttl_runs`) | none | 9.8 to 9.9 | **9.8 to 9.9 times** |
+
+- **Before the break it is cheap:** the summary call re-reads the 96k history from the warm cache. After the break the model rebuilds only the summary (about 21k of context against 17.8k fresh).
+- **After the break it saves nothing on the next fix:** the summary call sends the whole cold history again (87k to 90k uncached input tokens), about the same as just resuming. It only pays on later turns.
+- `/clear` plus a handoff is still the cheapest for an unrelated fix. `/compact` keeps the thread. The compact call is not in the transcript as an assistant row; its tokens come from Claude Code's `cost_state`. Across models' read weights: before 2.4 to 2.6 times, after 8.5 to 10.6 times.
 
 ![One carried history token after the cache expires costs 12.5 to 40 times a warm read](outputs/figures/ttl_price_of_a_pause.png)
 
@@ -216,6 +245,10 @@ The analyzer copies aggregates only, never prompt text. Read `preTokens` on your
 | `docs/article-draft.md` | The long-form essay |
 
 </details>
+
+## Credits
+
+Co-produced by Grok 4.7 and Claude Fable 5.2: AI-assisted research and writing, with Fable 5.2 reviewing and critiquing the analysis. Live experiments ran on Claude Opus 5.5.
 
 ## License
 

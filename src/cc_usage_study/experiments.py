@@ -1187,9 +1187,17 @@ def figure_hero(data: dict, path: Path, plt) -> None:
     rows = [
         ("Start fresh with /clear", 1.0, GREEN, 1.0, "1x"),
         ("Resume after a 3-minute break", hot, GREEN, 0.55, f"{hot:.1f}x"),
-        ("Resume after a 10-minute break", stale, RED, 1.0, f"{stale:.0f}x"),
     ]
-    fig, ax = plt.subplots(figsize=(11, 4.6))
+    compact = (data.get("compact_runs") or {}).get("headline_by_read_weight", {}).get("0.05")
+    if compact:
+        before = compact["before_total_vs_clear"]
+        rows.append(("/compact, then take the break", before, GREEN, 0.55, f"{before:.1f}x"))
+    rows.append(("Resume after a 10-minute break", stale, RED, 1.0, f"{stale:.0f}x"))
+    if compact:
+        after = compact["after_total_vs_clear"]
+        rows.append(("Take the break, then /compact", after, RED, 0.55, f"{after:.0f}x"))
+    note = ("3 stale resumes, 3 compact-before and 2 compact-after runs" if compact else "3 of 3 break runs agree")
+    fig, ax = plt.subplots(figsize=(11, 4.6 if len(rows) == 3 else 6.2))
     for index, (label, value, color, alpha, text) in enumerate(rows):
         y = len(rows) - 1 - index
         ax.barh(y, value, color=color, alpha=alpha, height=0.62, zorder=3)
@@ -1205,7 +1213,7 @@ def figure_hero(data: dict, path: Path, plt) -> None:
     fig.suptitle(f"Same quick bugfix, same {history / 1000:.0f}k-token Claude Code session", x=0.02, y=1.02,
                  ha="left", fontsize=20)
     fig.text(0.02, -0.02,
-             "Usage relative to a fresh start. Claude Opus 5.5, 5-minute cache, measured live, 3 of 3 break runs agree. "
+             f"Usage relative to a fresh start, /compact call included. Claude Opus 5.5, 5-minute cache, measured live: {note}. "
              "All fixes passed their tests.",
              ha="left", va="top", fontsize=11, color=MUTED)
     _save(fig, path, plt)
@@ -1251,11 +1259,12 @@ def main(argv: list[str] | None = None) -> int:
         data = extract(args.projects, args.raw_root, repo_root, args.checker, args.pytest)
         out.mkdir(parents=True, exist_ok=True)
         previous = out / DATASET_NAME
-        if previous.is_file() and "ttl_runs" not in data:
-            # The cache-expiry runs come from a separate runner; keep them across a rebuild.
-            kept = load(previous).get("ttl_runs")
-            if kept:
-                data["ttl_runs"] = kept
+        if previous.is_file():
+            # The cache-expiry and /compact runs come from separate runners; keep them across a rebuild.
+            old = load(previous)
+            for key in ("ttl_runs", "compact_runs"):
+                if key not in data and old.get(key):
+                    data[key] = old[key]
         (out / DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote {out / DATASET_NAME}")
     data = normalize(load(out / DATASET_NAME))

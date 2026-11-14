@@ -2489,5 +2489,370 @@
       "label": "--resume after\n10+ min, 97k history\n(separate TTL test)",
       "pct_of_clear": 986.6
     }
+  },
+  "compact_runs": {
+    "date": "2026-11-14",
+    "model": "claude-opus-5-5",
+    "claude_cli": "2.1.325",
+    "prompt_cache_ttl": "5m",
+    "effort": "medium",
+    "command": "claude -p \"/compact Keep: the 3 issues found, files touched, test command\" --resume SESSION",
+    "design": "Manual /compact on a ~97k-token session, then the same quick fix used in ttl_runs. Compact after the break: the two ttl_runs sessions, already hours past the 5-minute cache, were compacted and then given one fix right away. Compact before the break: three fresh ~97k builds were compacted within a minute (cache warm), left for more than 6 minutes, then given the fix. Baseline is the fresh /clear run of the same fix in ttl_runs. n=2 after, n=3 before.",
+    "units_note": "cache-weighted units, Opus 5.5 weights input 1, 5m write 1.25, 1h write 2, read 0.05, output 5; read weight sensitivity 0.1 and 0.025",
+    "invariants": {
+      "one_hour_cache_write_tokens": 0,
+      "compact_boundaries_per_compact_step": 1,
+      "compact_trigger": "manual",
+      "compact_steps_logged_as_assistant_rows": 0,
+      "min_pause_before_compact_after_s": 33833,
+      "max_compact_after_build_s": 1,
+      "min_pause_after_compact_before_s": 389,
+      "tests_passed": "5 of 5",
+      "note": "The compact call is not written to the transcript as an assistant row; its tokens come from Claude Code's cost_state totals. The third before-break run waited about 11 minutes instead of 6 because its runner stopped on a bug and the fix was resumed by hand."
+    },
+    "after": [
+      {
+        "task": "slice_bug",
+        "history_tokens": 98303,
+        "compact": {
+          "tokens": {
+            "input": 87089,
+            "cache_write_5m": 1694,
+            "cache_write_1h": 0,
+            "cache_read": 11388,
+            "output": 1974
+          },
+          "raw_tokens": 102145,
+          "units": 99646,
+          "units_by_read_weight": {
+            "0.1": 100215.3,
+            "0.05": 99645.9,
+            "0.025": 99361.2
+          },
+          "assistant_rows": 0,
+          "compact_boundaries": 1,
+          "trigger": "manual",
+          "pre_tokens": 98303
+        },
+        "next_task": {
+          "tokens": {
+            "input": 6,
+            "cache_write_5m": 7763,
+            "cache_write_1h": 0,
+            "cache_read": 53697,
+            "output": 560
+          },
+          "raw_tokens": 62026,
+          "units": 15195,
+          "units_by_read_weight": {
+            "0.1": 17879.5,
+            "0.05": 15194.6,
+            "0.025": 13852.2
+          },
+          "assistant_calls": 3,
+          "compact_boundaries": 0,
+          "first_call": {
+            "cache_write_5m": 7048,
+            "cache_read": 13082
+          },
+          "end_context_tokens": 21068
+        },
+        "total_units": 114841,
+        "next_task_vs_clear": 1.23,
+        "total_vs_clear": 9.26,
+        "next_task_vs_clear_by_read_weight": {
+          "0.1": 1.22,
+          "0.05": 1.23,
+          "0.025": 1.23
+        },
+        "total_vs_clear_by_read_weight": {
+          "0.1": 8.05,
+          "0.05": 9.26,
+          "0.025": 10.06
+        },
+        "tests_passed": true,
+        "pause_before_compact_s": 35294,
+        "compact_to_task_s": 3,
+        "total_vs_stale_resume": 0.93
+      },
+      {
+        "task": "median_bug",
+        "history_tokens": 101067,
+        "compact": {
+          "tokens": {
+            "input": 89724,
+            "cache_write_5m": 1694,
+            "cache_write_1h": 0,
+            "cache_read": 11388,
+            "output": 3358
+          },
+          "raw_tokens": 106164,
+          "units": 109201,
+          "units_by_read_weight": {
+            "0.1": 109770.3,
+            "0.05": 109200.9,
+            "0.025": 108916.2
+          },
+          "assistant_rows": 0,
+          "compact_boundaries": 1,
+          "trigger": "manual",
+          "pre_tokens": 101067
+        },
+        "next_task": {
+          "tokens": {
+            "input": 6,
+            "cache_write_5m": 9531,
+            "cache_write_1h": 0,
+            "cache_read": 57173,
+            "output": 707
+          },
+          "raw_tokens": 67417,
+          "units": 18313,
+          "units_by_read_weight": {
+            "0.1": 21172.0,
+            "0.05": 18313.4,
+            "0.025": 16884.1
+          },
+          "assistant_calls": 3,
+          "compact_boundaries": 0,
+          "first_call": {
+            "cache_write_5m": 8717,
+            "cache_read": 13082
+          },
+          "end_context_tokens": 22898
+        },
+        "total_units": 127514,
+        "next_task_vs_clear": 1.47,
+        "total_vs_clear": 10.22,
+        "next_task_vs_clear_by_read_weight": {
+          "0.1": 1.44,
+          "0.05": 1.47,
+          "0.025": 1.49
+        },
+        "total_vs_clear_by_read_weight": {
+          "0.1": 8.88,
+          "0.05": 10.22,
+          "0.025": 11.1
+        },
+        "tests_passed": true,
+        "pause_before_compact_s": 33833,
+        "compact_to_task_s": 2,
+        "total_vs_stale_resume": 1.05
+      }
+    ],
+    "before": [
+      {
+        "task": "median_bug",
+        "history_tokens": 97748,
+        "compact": {
+          "tokens": {
+            "input": 2178,
+            "cache_write_5m": 345,
+            "cache_write_1h": 0,
+            "cache_read": 96226,
+            "output": 1479
+          },
+          "raw_tokens": 100228,
+          "units": 14816,
+          "units_by_read_weight": {
+            "0.1": 19626.8,
+            "0.05": 14815.5,
+            "0.025": 12409.9
+          },
+          "assistant_rows": 0,
+          "compact_boundaries": 1,
+          "trigger": "manual",
+          "pre_tokens": 97748
+        },
+        "next_task": {
+          "tokens": {
+            "input": 6,
+            "cache_write_5m": 9246,
+            "cache_write_1h": 0,
+            "cache_read": 51575,
+            "output": 476
+          },
+          "raw_tokens": 61303,
+          "units": 16522,
+          "units_by_read_weight": {
+            "0.1": 19101.0,
+            "0.05": 16522.2,
+            "0.025": 15232.9
+          },
+          "assistant_calls": 3,
+          "compact_boundaries": 0,
+          "first_call": {
+            "cache_write_5m": 8530,
+            "cache_read": 11388
+          },
+          "end_context_tokens": 20778
+        },
+        "total_units": 31338,
+        "next_task_vs_clear": 1.32,
+        "total_vs_clear": 2.51,
+        "next_task_vs_clear_by_read_weight": {
+          "0.1": 1.29,
+          "0.05": 1.32,
+          "0.025": 1.34
+        },
+        "total_vs_clear_by_read_weight": {
+          "0.1": 2.63,
+          "0.05": 2.51,
+          "0.025": 2.44
+        },
+        "tests_passed": true,
+        "compact_after_build_s": 1,
+        "pause_after_compact_s": 389,
+        "build_end_context_tokens": 97410
+      },
+      {
+        "task": "median_bug",
+        "history_tokens": 97309,
+        "compact": {
+          "tokens": {
+            "input": 2178,
+            "cache_write_5m": 381,
+            "cache_write_1h": 0,
+            "cache_read": 96226,
+            "output": 1344
+          },
+          "raw_tokens": 100129,
+          "units": 14186,
+          "units_by_read_weight": {
+            "0.1": 18996.8,
+            "0.05": 14185.5,
+            "0.025": 11779.9
+          },
+          "assistant_rows": 0,
+          "compact_boundaries": 1,
+          "trigger": "manual",
+          "pre_tokens": 97309
+        },
+        "next_task": {
+          "tokens": {
+            "input": 6,
+            "cache_write_5m": 9359,
+            "cache_write_1h": 0,
+            "cache_read": 51581,
+            "output": 516
+          },
+          "raw_tokens": 61462,
+          "units": 16864,
+          "units_by_read_weight": {
+            "0.1": 19442.8,
+            "0.05": 16863.8,
+            "0.025": 15574.3
+          },
+          "assistant_calls": 3,
+          "compact_boundaries": 0,
+          "first_call": {
+            "cache_write_5m": 8533,
+            "cache_read": 11388
+          },
+          "end_context_tokens": 20922
+        },
+        "total_units": 31050,
+        "next_task_vs_clear": 1.35,
+        "total_vs_clear": 2.49,
+        "next_task_vs_clear_by_read_weight": {
+          "0.1": 1.32,
+          "0.05": 1.35,
+          "0.025": 1.37
+        },
+        "total_vs_clear_by_read_weight": {
+          "0.1": 2.61,
+          "0.05": 2.49,
+          "0.025": 2.41
+        },
+        "tests_passed": true,
+        "compact_after_build_s": 1,
+        "pause_after_compact_s": 392,
+        "build_end_context_tokens": 97309
+      },
+      {
+        "task": "median_bug",
+        "history_tokens": 97809,
+        "compact": {
+          "tokens": {
+            "input": 2178,
+            "cache_write_5m": 379,
+            "cache_write_1h": 0,
+            "cache_read": 96226,
+            "output": 1498
+          },
+          "raw_tokens": 100281,
+          "units": 14953,
+          "units_by_read_weight": {
+            "0.1": 19764.3,
+            "0.05": 14953.0,
+            "0.025": 12547.4
+          },
+          "assistant_rows": 0,
+          "compact_boundaries": 1,
+          "trigger": "manual",
+          "pre_tokens": 97809
+        },
+        "next_task": {
+          "tokens": {
+            "input": 6,
+            "cache_write_5m": 9297,
+            "cache_write_1h": 0,
+            "cache_read": 51713,
+            "output": 486
+          },
+          "raw_tokens": 61502,
+          "units": 16643,
+          "units_by_read_weight": {
+            "0.1": 19228.5,
+            "0.05": 16642.9,
+            "0.025": 15350.1
+          },
+          "assistant_calls": 3,
+          "compact_boundaries": 0,
+          "first_call": {
+            "cache_write_5m": 8599,
+            "cache_read": 11388
+          },
+          "end_context_tokens": 20856
+        },
+        "total_units": 31596,
+        "next_task_vs_clear": 1.33,
+        "total_vs_clear": 2.53,
+        "next_task_vs_clear_by_read_weight": {
+          "0.1": 1.3,
+          "0.05": 1.33,
+          "0.025": 1.35
+        },
+        "total_vs_clear_by_read_weight": {
+          "0.1": 2.64,
+          "0.05": 2.53,
+          "0.025": 2.46
+        },
+        "tests_passed": true,
+        "compact_after_build_s": 1,
+        "pause_after_compact_s": 664,
+        "build_end_context_tokens": 97459
+      }
+    ],
+    "headline_by_read_weight": {
+      "0.1": {
+        "after_next_task_vs_clear": 1.33,
+        "after_total_vs_clear": 8.46,
+        "before_next_task_vs_clear": 1.3,
+        "before_total_vs_clear": 2.63
+      },
+      "0.05": {
+        "after_next_task_vs_clear": 1.35,
+        "after_total_vs_clear": 9.74,
+        "before_next_task_vs_clear": 1.33,
+        "before_total_vs_clear": 2.51
+      },
+      "0.025": {
+        "after_next_task_vs_clear": 1.36,
+        "after_total_vs_clear": 10.58,
+        "before_next_task_vs_clear": 1.35,
+        "before_total_vs_clear": 2.44
+      }
+    }
   }
 }

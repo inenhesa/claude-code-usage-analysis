@@ -117,6 +117,8 @@ Timing still matters. With four 75-minute breaks and idle compaction running, th
 
 On a 5-minute cache (usage credits, or an API key) with 7-minute gaps, almost every user turn rewrites the context: **+213%** against answering within 2 minutes. Earlier compaction helps more there.
 
+When you run `/compact` matters as much. Measured live on Opus 5.5 with the same ~97k-token session and the same quick fix: `/compact` right away, while the cache was warm, then a 6.5 to 11 minute break, cost **2.5 times** a fresh `/clear` start in total (n=3), compact call included. Taking the break first and compacting after cost **9.3 and 10.2 times** (n=2), about the same as just resuming, because the summary request sends the whole cold history again. Anthropic's [cost guide](https://code.claude.com/docs/en/costs) also suggests compacting before you step away, and its [prompt caching page](https://code.claude.com/docs/en/prompt-caching) lists which requests get the 5-minute or 1-hour TTL.
+
 There are public counterexamples to compacting out of habit. In an [HN thread](https://news.ycombinator.com/item?id=47739260), Boris Cherny pointed at large-context cache misses, skills, and background agents. [Rulestack](https://dev.to/rulestack/claude-codes-compact-cost-006-at-136k-tokens-with-a-warm-cache-9x-that-cold-and-clear-sent-85f) reports a warm-versus-cold compaction gap. [Learn LLM](https://learn-llm.com/p/raw-tokens-fell-3960-the-bill-went/) reports fewer tokens and a higher client-estimated cost when only a few follow-up questions remained. Those experiments are not reproduced here. They are the right objection: a summary has a payback period.
 
 ## The agent forgets something important
@@ -189,7 +191,7 @@ Measure the allowance separately, in percentage points, not as a guessed dollar 
 | The summary forgets the rule. | Test it. Root `CLAUDE.md` and executable checks beat a lower token graph. Eight repairs moved the valley to 360k. |
 | That bar is not a token counter. | Agreed. Meter percentage points stay in their own column. |
 | The before and after was a quieter week. | Pair tasks. A historical split stays labeled observational. |
-| Why not `/clear`? | Right tool for unrelated work. Wrong tool for an unfinished investigation. |
+| Why not `/clear`? | Right tool for unrelated work. Wrong tool for an unfinished investigation: there, `/compact` before the break (2.5 times a fresh start, measured) beats resuming cold (about 10 times). |
 | One client is guaranteed cheaper. | It is not. Some reports found the opposite direction on the five-hour meter. |
 | Repair counts are universal. | No. Eight repairs and fifteen repairs are two sensitivity runs. |
 | Pauses do not matter. | They matter most. Measured live, resuming a 97k session after a 10-minute break used about 10 times a fresh start, and a lapsed idle compaction adds 76% to a day in the model. |

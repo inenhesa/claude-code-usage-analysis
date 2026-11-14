@@ -240,3 +240,62 @@ def test_ttl_runs_carry_no_dollars_or_ids():
     assert "usd" not in text.lower()
     assert "session_id" not in text and "sessionId" not in text
     assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", text)
+
+
+def test_compact_runs_hold_their_invariants():
+    data = _data()
+    runs = data["compact_runs"]
+    ttl = data["ttl_runs"]
+    assert runs["model"] == "claude-opus-5-5"
+    assert runs["prompt_cache_ttl"] == "5m"
+    inv = runs["invariants"]
+    assert inv["one_hour_cache_write_tokens"] == 0
+    assert inv["compact_trigger"] == "manual"
+    assert inv["tests_passed"] == "5 of 5"
+    assert inv["min_pause_before_compact_after_s"] > 300
+    assert inv["max_compact_after_build_s"] < 60
+    assert inv["min_pause_after_compact_before_s"] > 300
+    assert len(runs["after"]) == 2 and len(runs["before"]) == 3
+    clear = {run["task"]: run for run in ttl["clear"]}
+    stale = {run["task"]: run for run in ttl["stale"]}
+    for run in runs["after"] + runs["before"]:
+        compact, task = run["compact"], run["next_task"]
+        assert compact["compact_boundaries"] == 1 and compact["trigger"] == "manual"
+        assert compact["assistant_rows"] == 0  # the summary call is hidden from the transcript
+        assert task["compact_boundaries"] == 0
+        assert run["history_tokens"] == compact["pre_tokens"] > 95_000
+        assert run["tests_passed"]
+        for block in (compact, task):
+            assert block["tokens"]["cache_write_1h"] == 0
+            assert block["raw_tokens"] == sum(block["tokens"].values())
+            for weight, units in block["units_by_read_weight"].items():
+                assert abs(weighted_units(block["tokens"], float(weight)) - units) < 0.2
+            assert block["units"] == round(block["units_by_read_weight"]["0.05"])
+        assert run["total_units"] == compact["units"] + task["units"]
+        assert abs(run["total_vs_clear"] - run["total_units"] / clear[run["task"]]["units"]) < 0.01
+        # After compaction the next fix starts from a small context, close to a fresh start.
+        assert task["end_context_tokens"] < 25_000
+        assert 1.1 < run["next_task_vs_clear"] < 1.6
+    for run in runs["before"]:
+        # Compacted while warm: the history is read from cache, not rebuilt.
+        assert run["compact"]["tokens"]["cache_read"] > 90_000
+        assert run["compact"]["tokens"]["input"] + run["compact"]["tokens"]["cache_write_5m"] < 5_000
+        assert run["pause_after_compact_s"] > 300
+        assert 2.4 < run["total_vs_clear"] < 2.6
+    for run in runs["after"]:
+        # Compacted cold: the whole history is sent again, so it saves nothing on the next fix.
+        assert run["compact"]["tokens"]["input"] > 85_000
+        assert run["pause_before_compact_s"] > 300
+        assert 9.0 < run["total_vs_clear"] < 10.5
+        assert abs(run["total_vs_stale_resume"] - run["total_units"] / stale[run["task"]]["units"]) < 0.01
+    head = runs["headline_by_read_weight"]["0.05"]
+    assert head["before_total_vs_clear"] == 2.51
+    assert head["after_total_vs_clear"] == 9.74
+
+
+def test_compact_runs_carry_no_dollars_or_ids():
+    text = json.dumps(_data()["compact_runs"])
+    assert "usd" not in text.lower()
+    assert "session_id" not in text and "sessionId" not in text
+    assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", text)
+    assert "/" + "tmp/" not in text and "/" + "home/" not in text
