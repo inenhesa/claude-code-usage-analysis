@@ -19,6 +19,7 @@ def _user_facing():
     yield ROOT / "README.md"
     yield from sorted((ROOT / "docs").glob("*.md"))
     yield from sorted((ROOT / "benchmarks").glob("*.md"))
+    yield from sorted((ROOT / "skills").rglob("*.md"))
     yield ROOT / "outputs" / "summary.json"
 
 
@@ -79,16 +80,20 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert readme.startswith("# Claude Code usage: best practices and anti-patterns")
     hero = readme.index("outputs/figures/hero_coffee_break.png")
     practices = readme.index("## Best practices")
-    antipatterns = readme.index("## Anti-patterns")
+    check = readme.index("## Check your own habits: paste this into Claude Code")
     myths = readme.index("## Myths and unknowns")
     copy_paste = readme.index("## Copy-paste")
-    check = readme.index("## Check your own usage")
     evidence = readme.index("## The evidence")
-    assert hero < practices < antipatterns < myths < copy_paste < check < evidence
-    # The top stays short: title, hero, lists and copy-paste fit in roughly one screen.
-    assert readme[:evidence].count("\n") < 70
-    assert "cc_usage_study.analyze" in readme[check:evidence]
-    assert "--summary" in readme[check:evidence]
+    assert hero < practices < check < myths < copy_paste < evidence
+    assert "## Anti-patterns" not in readme
+    # Title, hero, and the paired practices list stay short; the self-check prompt follows.
+    assert readme[:check].count("\n") < 25
+    self_check = readme[check:myths]
+    assert "cc_usage_study.analyze" in self_check
+    assert "--summary" in self_check and "--sessions" in self_check
+    assert "Everyone uses Claude Code differently" in self_check
+    assert "~/.claude/skills" in self_check
+    assert "/claude-code-usage-check" in self_check
     assert readme.index("### 1. The coffee-break tax") > evidence
     assert "### Does the model hold up?" in readme[evidence:]
     # Promote the CLI / T3 Code over Desktop, without inventing a chat-app number.
@@ -156,9 +161,8 @@ def test_readme_internal_anchors_resolve():
     assert missing == []
     for required in (
         "best-practices",
-        "anti-patterns",
+        "check-your-own-habits-paste-this-into-claude-code",
         "myths-and-unknowns",
-        "check-your-own-usage",
         "the-evidence",
         "1-the-coffee-break-tax",
         "compact-before-or-after-the-break",
@@ -183,3 +187,24 @@ def test_docs_reconcile_the_compound_trigger():
     assert "100,000" in reference
     client = (ROOT / "benchmarks" / "client_comparison.md").read_text(encoding="utf-8").lower()
     assert "cold start" not in client
+
+def test_usage_check_skill_has_valid_frontmatter():
+    path = ROOT / "skills" / "claude-code-usage-check" / "SKILL.md"
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("---\n")
+    end = text.find("\n---", 3)
+    assert end != -1
+    meta = {}
+    for line in text[4:end].splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        key, sep, value = line.partition(":")
+        assert sep, line
+        meta[key.strip()] = value.strip()
+    assert meta.get("name") == "claude-code-usage-check"
+    assert meta.get("description")
+    assert "cc_usage_study.analyze" in text
+    assert "--summary" in text and "--sessions" in text and "--calls" in text
+    assert "Everyone uses Claude Code differently" in text
+    assert "\u2014" not in text
+    assert DOLLAR.search(text) is None

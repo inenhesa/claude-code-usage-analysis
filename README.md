@@ -6,21 +6,47 @@
 
 ## Best practices
 
-- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first. The next fix used 2.5x a fresh session, compact call included, not 10x. (n=3) [Why](#compact-before-or-after-the-break)
-- **Back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff, rather than resume. (n=3) [Why](#1-the-coffee-break-tax)
-- **Quick related fixes back to back?** Stay in the session. It used 28% less than `/clear` between each, while history stayed small. (n=1) [Why](#3-clear-vs-a-warm-session)
-- **Scheduled `claude -p` jobs?** Fresh session every run, state in a file. `--resume` is ~3x. (modeled) [Why](#1-the-coffee-break-tax)
-- **Write code in the plain Claude Code CLI.** Lowest usage of the three we measured. T3 Code is a reasonable alternative at 1.19x. Claude Desktop's Code tab was 1.80x (a floor). Why: it sent a much larger first-request prefix (39,749 tokens against the CLI's 19,528). This is the Code tab, not the Claude chat app. (n=1) [Why](#4-three-clients-one-bugfix)
+- **Leaving for a break?** [`/compact`](https://code.claude.com/docs/en/commands) first (2.5x a fresh session, compact call included), not resume after (about 10x). (n=3) [Why](#compact-before-or-after-the-break)
+- **Already back after a break?** [`/clear`](https://code.claude.com/docs/en/commands) and paste a 3-line handoff, not `/compact` after the break (still about 10x). (resume n=3, `/compact` n=2) [Why](#1-the-coffee-break-tax)
+- **Quick related fixes back to back?** Stay in the session (28% less), not `/clear` between each. (n=1, small history) [Why](#3-clear-vs-a-warm-session)
+- **Scheduled `claude -p` jobs?** Fresh session every run, state in a file, not `--resume` (~3x). (modeled) [Why](#1-the-coffee-break-tax)
+- **Write code in the plain Claude Code CLI.** Lowest usage of the three we measured. T3 Code is a reasonable alternative at 1.19x, not Claude Desktop's Code tab at 1.80x (a floor). Desktop sent a much larger first-request prefix (39,749 tokens against the CLI's 19,528). We did not measure the Claude chat app. (n=1) [Why](#4-three-clients-one-bugfix)
 - **Judge usage by cache-weighted tokens, not raw counts.** A warm and a stale resume moved the same ~294k raw tokens and differed 6.5x in usage. [Why](#the-evidence)
 
-## Anti-patterns
+## Check your own habits: paste this into Claude Code
 
-- **Resuming a big session after a break.** The next small fix used about 10x a fresh session. (n=3) [Why](#1-the-coffee-break-tax)
-- **Running `/compact` after the break.** Still about 10x: the summary call itself reprocesses the cold history. (n=2) [Why](#compact-before-or-after-the-break)
-- **`/clear` between quick related fixes.** You pay the startup cost again each time. (n=1) [Why](#3-clear-vs-a-warm-session)
-- **`--resume` in scheduled `claude -p` jobs.** About 3x a fresh session each run. (modeled) [Why](#1-the-coffee-break-tax)
-- **Using Claude Desktop's Code tab for coding.** Same fix used 1.80x the CLI (a floor). Prefer the CLI, or T3 Code at 1.19x. We did not measure the Claude chat app. (n=1) [Why](#4-three-clients-one-bugfix)
-- **Judging usage by raw token counts.** The same ~294k raw tokens differed 6.5x in usage. [Why](#the-evidence)
+Everyone uses Claude Code differently, so the settings that help you depend on your own logs. Paste this into Claude Code for a one-off check:
+
+```text
+Everyone uses Claude Code differently, so recommend settings that fit MY logs, not generic advice.
+
+1. Clone https://github.com/inevolin/claude-code-usage-analysis into a temp dir, then:
+   python3 -m pip install -e .
+   OUT=$(mktemp -d)
+   python3 -m cc_usage_study.analyze ~/.claude/projects --summary --sessions --calls -o "$OUT/report.json"
+   Keep that JSON outside any git repo. Work only from it (aggregates, timestamps, token counts, entrypoints, compact_boundary fields). Never read, paste, or upload raw transcript message text. No dollar amounts; use % and multipliers.
+
+2. Score my habits, using my numbers:
+   - Resumes after the cache expired: cache_rebuilds_main.ttl_expired_rebuild (gap > 5 min if cache_creation_5m_tokens dominate, > 1 hour if cache_creation_1h_tokens do).
+   - /compact after a break vs before: compare boundary_rows timestamps and trigger with gaps in call_rows.
+   - Many short sessions close together (a proxy for /clear between related work) vs one warm session.
+   - sdk-cli (claude -p) sessions resumed across gaps vs a fresh session each run.
+   - Client mix in by_entrypoint: cli = Claude Code CLI, sdk-cli = claude -p, t3-code = T3 Code, claude-desktop-3p = Desktop Code tab. Prefer the CLI, or T3 Code; Desktop's Code tab was 1.80x in this study (a floor). The Claude chat app was not measured.
+   - Sessions whose peak request size reaches 300k: use a single call's prompt_tokens or compact pre_tokens, never the session-sum of prompt_tokens.
+
+3. Short report: (a) the top 3 habits costing me the most, with my % or multipliers; (b) concrete changes that fit my pattern, only from: /compact before breaks, /clear plus a 3-line handoff when I am already back, fresh `claude -p` each scheduled run, prefer the CLI or T3 Code over Desktop's Code tab. Mention `--autocompact` only as an unproven hypothesis, and only if my sessions actually get that large; (c) what you could not tell. If a field is missing, compute it from timestamps and compact_boundary metadata only, or say you cannot tell.
+```
+
+This runs locally on `~/.claude/projects`. The prompt tells Claude to work from aggregated numbers and timestamps, not raw message text. Nothing leaves your machine except the normal Claude Code conversation, which will include those aggregates.
+
+Or install the skill and type `/claude-code-usage-check` in a new session:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R skills/claude-code-usage-check ~/.claude/skills/
+```
+
+To run only the analyzer: `python3 -m cc_usage_study.analyze ~/.claude/projects --summary --sessions --calls -o ./local-out/report.json` (keep the JSON outside git; prompt text is never copied).
 
 ## Myths and unknowns
 
@@ -48,15 +74,7 @@ Done: tests in tests/test_invoice.py reproduce it.
 Next: patch money.py, run the suite.
 ```
 
-## Check your own usage
-
-```bash
-python3 -m cc_usage_study.analyze ~/.claude/projects --summary --sessions -o ./local-out/report.json
-```
-
-Prints a scorecard of cache-weighted usage and writes JSON, including cache rebuilds after the TTL expired. Prompt text is never copied; keep the output outside git. Add `--split-date YYYY-MM-DD` for a before/after comparison.
-
-**Contents:** [the evidence](#the-evidence) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [`/clear`](#3-clear-vs-a-warm-session) · [clients](#4-three-clients-one-bugfix) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
+**Contents:** [best practices](#best-practices) · [check your habits](#check-your-own-habits-paste-this-into-claude-code) · [the evidence](#the-evidence) · [the coffee-break test](#1-the-coffee-break-tax) · [`/compact`](#compact-before-or-after-the-break) · [does this apply to you](#does-this-apply-to-you) · [does the model hold up](#does-the-model-hold-up) · [compaction](#2-compaction-measured-live) · [`/clear`](#3-clear-vs-a-warm-session) · [clients](#4-three-clients-one-bugfix) · [hypotheses](#6-hypotheses-compaction-settings-and-sweet-spots) · [limits](#honest-limits) · [reproduce](#reproduce)
 
 ---
 
