@@ -1,5 +1,7 @@
 # Claude Code usage: best practices and anti-patterns
 
+<p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer: a 10-minute break makes your next Claude Code fix use 10x more usage. Run /compact before a break, /clear plus a 3-line handoff after one, and use the plain CLI." width="100%"></p>
+
 **Leave a big Claude Code session for 10 minutes, then come back and continue it.** Your next small fix uses about 10 times as much usage as the same fix in a new session. "Usage" means tokens counted the way Anthropic charges for them: re-reading saved history is cheap, sending it again is expensive. During the break, your history left Claude's 5-minute [prompt cache](https://code.claude.com/docs/en/prompt-caching). That cache is a short-lived copy of the conversation, so Claude can reuse it cheaply. Once it is gone, Claude has to process the whole history again. We measured this on real Claude Opus 5.5 runs.
 
 ![Same small fix on a large session (about 97,000 tokens). A new session is 1x. Continuing after 3 minutes is 1.5x. Running /compact, then taking a break, is 2.5x. Continuing after a 10-minute break is 10x. Running /compact only after the break is also 10x.](outputs/figures/hero_coffee_break.png)
