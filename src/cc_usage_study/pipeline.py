@@ -22,7 +22,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import analyze, experiments, simulate
+from . import analyze, experiments, simulate, validate
 from .checks import format_checks, has_errors, run_checks
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,7 +43,7 @@ def run(projects: Path, out: Path, split_date: str | None, split_tz: str) -> int
     out.mkdir(parents=True, exist_ok=True)
     failed = False
 
-    print(f"== 1/4 analyze {projects}")
+    print(f"== 1/5 analyze {projects}")
     report = analyze.analyze_paths([projects])
     if split_date:
         report["periods"] = analyze.split_periods(report, split_date, split_tz)
@@ -59,16 +59,26 @@ def run(projects: Path, out: Path, split_date: str | None, split_tz: str) -> int
     if report.get("synthetic") is True:
         print("Note: synthetic fixture data. Do not publish as real usage.")
 
-    print("== 2/4 simulate (caching model)")
+    print("== 2/5 simulate (caching model)")
     simulate.write_outputs(out)
 
-    print("== 3/4 live-experiment figures")
+    print("== 3/5 live-experiment figures")
     shutil.copyfile(COMMITTED / experiments.DATASET_NAME, out / experiments.DATASET_NAME)
     data = experiments.normalize(experiments.load(out / experiments.DATASET_NAME))
     (out / experiments.DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     experiments.write_figures(data, out)
 
-    print("== 4/4 verify regenerated model against committed outputs/summary.json")
+    print("== 4/5 back-test the model against the live runs")
+    report_v = validate.run(COMMITTED / "live_experiments.json")
+    print(validate.format_report(report_v))
+    (out / "validation.json").write_text(json.dumps(report_v, indent=2) + "\n", encoding="utf-8")
+    validate.write_figure(report_v, out)
+    committed_v = COMMITTED / "validation.json"
+    if committed_v.is_file() and json.loads(committed_v.read_text(encoding="utf-8")) != report_v:
+        failed = True
+        print("[FAIL] validation differs from the committed outputs/validation.json")
+
+    print("== 5/5 verify regenerated model against committed outputs/summary.json")
     fresh = _strip_volatile(json.loads((out / "summary.json").read_text(encoding="utf-8")))
     committed = _strip_volatile(json.loads((COMMITTED / "summary.json").read_text(encoding="utf-8")))
     if fresh == committed:

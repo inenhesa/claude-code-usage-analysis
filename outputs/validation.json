@@ -1,0 +1,342 @@
+{
+  "schema": 1,
+  "source": "outputs/live_experiments.json",
+  "what": "Simulator back-test against every live run. No API calls.",
+  "score": {
+    "short_task_published_hits": 0,
+    "short_task_calibrated_hits": 10,
+    "short_task_runs": 10,
+    "hit_tolerance": 0.25,
+    "arm_sign_matches_published": 3,
+    "arm_sign_matches_calibrated": 3,
+    "arms": 4,
+    "trigger_formula_matches": 5,
+    "trigger_arms": 5
+  },
+  "trigger": [
+    {
+      "arm": "default_1m",
+      "formula_trigger": 967000,
+      "repo_predicted_threshold": 967000,
+      "formula_matches_repo": true,
+      "first_pre_tokens": null,
+      "overshoot_tokens": null,
+      "overshoot_share": null,
+      "note": "no compaction expected or seen"
+    },
+    {
+      "arm": "window_180k",
+      "formula_trigger": 147000,
+      "repo_predicted_threshold": 147000,
+      "formula_matches_repo": true,
+      "first_pre_tokens": 170089,
+      "overshoot_tokens": 23089,
+      "overshoot_share": 0.1571,
+      "note": "compaction is checked between requests, so one large tool result can carry the context past the trigger"
+    },
+    {
+      "arm": "window_140k",
+      "formula_trigger": 107000,
+      "repo_predicted_threshold": 107000,
+      "formula_matches_repo": true,
+      "first_pre_tokens": 107286,
+      "overshoot_tokens": 286,
+      "overshoot_share": 0.0027,
+      "note": "compaction is checked between requests, so one large tool result can carry the context past the trigger"
+    },
+    {
+      "arm": "window_100k",
+      "formula_trigger": 67000,
+      "repo_predicted_threshold": 67000,
+      "formula_matches_repo": true,
+      "first_pre_tokens": 73041,
+      "overshoot_tokens": 6041,
+      "overshoot_share": 0.0902,
+      "note": "compaction is checked between requests, so one large tool result can carry the context past the trigger"
+    },
+    {
+      "arm": "compound_25pct_250k",
+      "formula_trigger": 57500,
+      "repo_predicted_threshold": 57500,
+      "formula_matches_repo": true,
+      "first_pre_tokens": 89402,
+      "overshoot_tokens": 31902,
+      "overshoot_share": 0.5548,
+      "note": "compaction is checked between requests, so one large tool result can carry the context past the trigger"
+    }
+  ],
+  "short_tasks": {
+    "read_weight": 0.05,
+    "published_constants": {
+      "system_tokens": 12000,
+      "project_tokens": 5000,
+      "calls": 5,
+      "tail_tokens": 2000,
+      "output_tokens": 600,
+      "summary_tokens": 3000,
+      "reinjected_tokens": 15000
+    },
+    "calibration": {
+      "shared_cached_prefix": 11388.0,
+      "first_call_write": 5542.0,
+      "calls": 3,
+      "output_per_call": 167.0,
+      "tail_per_call": 174.2,
+      "source": "ttl_runs.clear only"
+    },
+    "measured_summary_output_tokens": 1930.6,
+    "rows": [
+      {
+        "name": "fresh start (/clear), mean of 3",
+        "measured": 12570.9,
+        "published": 56330.0,
+        "published_error": 3.481,
+        "published_hit": false,
+        "calibrated": 12563.1,
+        "calibrated_error": -0.0006,
+        "calibrated_hit": true,
+        "note": "published model writes the whole system prompt cold; live, about 11.4k of it was read from a cache shared across sessions"
+      },
+      {
+        "name": "warm resume, 3.3 min, 97k history",
+        "measured": 19000.3,
+        "published": 60260.2,
+        "published_error": 2.1715,
+        "published_hit": false,
+        "calibrated": 18442.5,
+        "calibrated_error": -0.0294,
+        "calibrated_hit": true,
+        "note": ""
+      },
+      {
+        "name": "stale resume 1, 10 min break",
+        "measured": 121753.8,
+        "published": 197580.3,
+        "published_error": 0.6228,
+        "published_hit": false,
+        "calibrated": 121687.6,
+        "calibrated_error": -0.0005,
+        "calibrated_hit": true,
+        "note": ""
+      },
+      {
+        "name": "stale resume 2, 12 min break",
+        "measured": 123021.4,
+        "published": 199066.6,
+        "published_error": 0.6181,
+        "published_hit": false,
+        "calibrated": 123071.4,
+        "calibrated_error": 0.0004,
+        "calibrated_hit": true,
+        "note": ""
+      },
+      {
+        "name": "stale resume 3, 12 min break",
+        "measured": 127299.9,
+        "published": 200529.6,
+        "published_error": 0.5753,
+        "published_hit": false,
+        "calibrated": 124433.6,
+        "calibrated_error": -0.0225,
+        "calibrated_hit": true,
+        "note": ""
+      },
+      {
+        "name": "/compact before the break, run 1",
+        "measured": 31337.8,
+        "published": 103567.4,
+        "published_error": 2.3049,
+        "published_hit": false,
+        "calibrated": 32623.6,
+        "calibrated_error": 0.041,
+        "calibrated_hit": true,
+        "note": "calibrated next task uses the measured post-compact prompt size"
+      },
+      {
+        "name": "/compact before the break, run 2",
+        "measured": 31049.3,
+        "published": 103545.4,
+        "published_error": 2.3349,
+        "published_hit": false,
+        "calibrated": 32605.7,
+        "calibrated_error": 0.0501,
+        "calibrated_hit": true,
+        "note": "calibrated next task uses the measured post-compact prompt size"
+      },
+      {
+        "name": "/compact before the break, run 3",
+        "measured": 31596.0,
+        "published": 103570.4,
+        "published_error": 2.278,
+        "published_hit": false,
+        "calibrated": 32719.8,
+        "calibrated_error": 0.0356,
+        "calibrated_hit": true,
+        "note": "calibrated next task uses the measured post-compact prompt size"
+      },
+      {
+        "name": "/compact after the break, run 1",
+        "measured": 114840.5,
+        "published": 221558.8,
+        "published_error": 0.9293,
+        "published_hit": false,
+        "calibrated": 126075.4,
+        "calibrated_error": 0.0978,
+        "calibrated_hit": true,
+        "note": "calibrated next task uses the measured post-compact prompt size"
+      },
+      {
+        "name": "/compact after the break, run 2",
+        "measured": 127514.3,
+        "published": 225013.8,
+        "published_error": 0.7646,
+        "published_hit": false,
+        "calibrated": 131092.5,
+        "calibrated_error": 0.0281,
+        "calibrated_hit": true,
+        "note": "calibrated next task uses the measured post-compact prompt size"
+      }
+    ],
+    "ratios": [
+      {
+        "claim": "warm resume vs fresh",
+        "measured": 1.51,
+        "published": 1.07,
+        "calibrated": 1.47
+      },
+      {
+        "claim": "stale resume vs fresh",
+        "measured": 9.87,
+        "published": 3.53,
+        "calibrated": 9.8
+      },
+      {
+        "claim": "/compact before break vs fresh",
+        "measured": 2.49,
+        "published": 1.84,
+        "calibrated": 2.6
+      },
+      {
+        "claim": "/compact after break vs fresh",
+        "measured": 9.64,
+        "published": 3.96,
+        "calibrated": 10.24
+      }
+    ]
+  },
+  "compaction_arms": {
+    "rows": [
+      {
+        "arm": "window_180k",
+        "variant": "published",
+        "predicted_cost_vs_default": -0.0244,
+        "measured_cost_vs_default": 0.0014,
+        "predicted_compactions": 2,
+        "measured_compactions": 2,
+        "validity_gate_passed": false,
+        "error_points": -2.6,
+        "sign_matches": true
+      },
+      {
+        "arm": "window_140k",
+        "variant": "published",
+        "predicted_cost_vs_default": -0.0089,
+        "measured_cost_vs_default": 0.1814,
+        "predicted_compactions": 3,
+        "measured_compactions": 4,
+        "validity_gate_passed": true,
+        "error_points": -19.0,
+        "sign_matches": false
+      },
+      {
+        "arm": "window_100k",
+        "variant": "published",
+        "predicted_cost_vs_default": 0.1655,
+        "measured_cost_vs_default": 0.2517,
+        "predicted_compactions": 7,
+        "measured_compactions": 7,
+        "validity_gate_passed": true,
+        "error_points": -8.6,
+        "sign_matches": true
+      },
+      {
+        "arm": "compound_25pct_250k",
+        "variant": "published",
+        "predicted_cost_vs_default": 0.5175,
+        "measured_cost_vs_default": 0.1358,
+        "predicted_compactions": 14,
+        "measured_compactions": 6,
+        "validity_gate_passed": false,
+        "error_points": 38.2,
+        "sign_matches": true
+      },
+      {
+        "arm": "window_180k",
+        "variant": "calibrated",
+        "predicted_cost_vs_default": -0.0378,
+        "measured_cost_vs_default": 0.0014,
+        "predicted_compactions": 2,
+        "measured_compactions": 2,
+        "validity_gate_passed": false,
+        "error_points": -3.9,
+        "sign_matches": true
+      },
+      {
+        "arm": "window_140k",
+        "variant": "calibrated",
+        "predicted_cost_vs_default": -0.0286,
+        "measured_cost_vs_default": 0.1814,
+        "predicted_compactions": 3,
+        "measured_compactions": 4,
+        "validity_gate_passed": true,
+        "error_points": -21.0,
+        "sign_matches": false
+      },
+      {
+        "arm": "window_100k",
+        "variant": "calibrated",
+        "predicted_cost_vs_default": 0.1229,
+        "measured_cost_vs_default": 0.2517,
+        "predicted_compactions": 7,
+        "measured_compactions": 7,
+        "validity_gate_passed": true,
+        "error_points": -12.9,
+        "sign_matches": true
+      },
+      {
+        "arm": "compound_25pct_250k",
+        "variant": "calibrated",
+        "predicted_cost_vs_default": 0.2563,
+        "measured_cost_vs_default": 0.1358,
+        "predicted_compactions": 10,
+        "measured_compactions": 6,
+        "validity_gate_passed": false,
+        "error_points": 12.0,
+        "sign_matches": true
+      }
+    ],
+    "summary_call_units": {
+      "measured_mean_hidden_units": 36604,
+      "modeled_summary_call_units_at_107k": 21600.0,
+      "ratio_measured_to_modeled": 1.69
+    },
+    "note": "Replay of the LedgerKit suite: the default arm's measured trajectory (first prefix, growth per call, output per call) drives simulate() at each arm's setting. Measured cost includes the hidden summary traffic from cost_state. n=1 per arm and two arms fail the repo's own validity gate."
+  },
+  "modeled_claims_recalibrated": [
+    {
+      "claim": "stale resume with 30k history vs /clear plus 2 exploration calls, 5m cache",
+      "published_extra": 0.408,
+      "calibrated_extra": 0.398
+    },
+    {
+      "claim": "stale resume with 60k history vs /clear plus 2 exploration calls, 5m cache",
+      "published_extra": 1.021,
+      "calibrated_extra": 1.89
+    },
+    {
+      "claim": "stale resume break-even history with 2 saved exploration calls, 5m cache (tokens)",
+      "published": 10052,
+      "calibrated": 10796
+    }
+  ]
+}
