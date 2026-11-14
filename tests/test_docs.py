@@ -74,14 +74,19 @@ def test_no_private_material_in_public_pages():
     assert offenders == []
 
 
-def test_readme_leads_with_the_rules_and_embeds_the_new_charts():
+def test_readme_leads_with_the_hero_and_rules_and_embeds_the_charts():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert readme.startswith(
-        "# Claude Code usage: fewer tokens is not less usage, and a pause can cost more than the work"
-    )
-    takeaways = readme.index("Best Practices & Takeaways")
-    assert takeaways < readme.index("## 1. The pause tax")
+    assert readme.startswith("# Your Claude Code coffee break costs 10x")
+    hero = readme.index("outputs/figures/hero_coffee_break.png")
+    rules = readme.index("## The rules")
+    measured = readme.index("## How we measured")
+    assert hero < rules < measured
+    assert "(#how-we-measured)" in readme[:measured]
+    # The top stays short: title, hero, rules and copy-paste fit in roughly one screen.
+    assert readme[:measured].count("\n") < 60
+    assert readme.index("### 1. The coffee-break tax") > measured
     for figure in (
+        "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",
         "resume_crossover.png",
         "cron_resume_vs_fresh.png",
@@ -95,8 +100,13 @@ def test_readme_leads_with_the_rules_and_embeds_the_new_charts():
         assert f"outputs/figures/{figure}" in readme, figure
         assert (ROOT / "outputs" / "figures" / figure).is_file(), figure
     assert "ttl_cliff" not in readme
-    assert "cache-weighted" in readme
-    assert "1 / 1.25 / 2 / 0.05 / 5" in readme
+    # Caveats move below the fold but must still be there.
+    details = readme[measured:]
+    assert "cache-weighted" in details
+    assert "1 / 1.25 / 2 / 0.05 / 5" in details
+    assert "Honest limits" in details
+    assert "n=1" in details
+    assert "(modeled)" in readme[:measured]
 
 
 def test_docs_reconcile_the_compound_trigger():

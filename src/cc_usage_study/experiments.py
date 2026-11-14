@@ -42,6 +42,7 @@ FIGURE_NAMES = (
     "live_client_comparison.png",
     "live_compaction_arms.png",
     "live_clear_vs_warm.png",
+    "hero_coffee_break.png",
 )
 
 CLI_VERSION = "2.1.325"
@@ -1176,6 +1177,40 @@ def figure_clear_vs_warm(data: dict, path: Path, plt) -> None:
     _save(fig, path, plt)
 
 
+def figure_hero(data: dict, path: Path, plt) -> None:
+    """README hero: the same quick fix, fresh vs warm resume vs resume after a coffee break."""
+    ttl = data["ttl_runs"]
+    head = ttl["headline_by_read_weight"]["0.05"]
+    stale = head["stale_vs_clear"]
+    hot = head["hot_vs_clear"]
+    history = ttl["hot"]["history_tokens"]
+    rows = [
+        ("Start fresh with /clear", 1.0, GREEN, 1.0, "1x"),
+        ("Resume after a 3-minute break", hot, GREEN, 0.55, f"{hot:.1f}x"),
+        ("Resume after a 10-minute break", stale, RED, 1.0, f"{stale:.0f}x"),
+    ]
+    fig, ax = plt.subplots(figsize=(11, 4.6))
+    for index, (label, value, color, alpha, text) in enumerate(rows):
+        y = len(rows) - 1 - index
+        ax.barh(y, value, color=color, alpha=alpha, height=0.62, zorder=3)
+        ax.text(value + 0.15, y, text, va="center", ha="left", fontsize=26, fontweight="bold", color=color)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels([label for label, *_ in reversed(rows)], fontsize=16)
+    ax.set_xlim(0, stale * 1.18)
+    ax.set_xticks([])
+    for side in ("top", "right", "bottom"):
+        ax.spines[side].set_visible(False)
+    ax.spines["left"].set_color(AXIS)
+    ax.tick_params(length=0, pad=10)
+    fig.suptitle(f"Same quick bugfix, same {history / 1000:.0f}k-token Claude Code session", x=0.02, y=1.02,
+                 ha="left", fontsize=20)
+    fig.text(0.02, -0.02,
+             "Usage relative to a fresh start. Claude Opus 5.5, 5-minute cache, measured live, 3 of 3 break runs agree. "
+             "All fixes passed their tests.",
+             ha="left", va="top", fontsize=11, color=MUTED)
+    _save(fig, path, plt)
+
+
 def write_figures(data: dict, out: Path) -> list[Path]:
     import matplotlib
 
@@ -1190,6 +1225,7 @@ def write_figures(data: dict, out: Path) -> list[Path]:
     figure_clients(data, paths[0], plt)
     figure_compaction(data, paths[1], plt)
     figure_clear_vs_warm(data, paths[2], plt)
+    figure_hero(data, paths[3], plt)
     return paths
 
 
@@ -1200,7 +1236,7 @@ def load(path: Path) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Live Opus 5.5 experiments: dataset and charts.")
     sub = parser.add_subparsers(dest="command")
-    fig = sub.add_parser("figures", help="normalize the committed JSON and draw the three live charts")
+    fig = sub.add_parser("figures", help="normalize the committed JSON and draw the live charts")
     fig.add_argument("--out", type=Path, default=Path("outputs"))
     ext = sub.add_parser("extract", help="rebuild the JSON from raw transcripts (needs the original files)")
     ext.add_argument("--projects", type=Path, default=Path.home() / ".claude" / "projects")
