@@ -1,6 +1,6 @@
 # A 10-minute break makes a small Claude Code fix use 10 times as much
 
-<p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer: a 5-minute cache holds your Claude Code session. A small fix is 1.5x while the cache is warm. After the cache expires, the same fix is about 10x. Run /compact before a break, or /clear plus a 3-line note after one." width="100%"></p>
+<p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer. Resume a session after a 10-minute break and the same small fix uses about 10x a fresh session (measured on a 97k-token session), because the cache expired (5 minutes on an API key, 1 hour on a subscription) and the whole history is sent again. Avoid: resuming after a break, /compact after a break, turning off a tool mid-task (22x a normal turn). Do: /compact before a break (2.5x), /clear plus a 3-line note after one (a fresh start), stay in the session for quick fixes in a row (28% less than /clear between fixes). Star this repo if you found it useful." width="100%"></p>
 
 Claude Code usage is driven by cache misses, not by how much you type. The expensive habits are ways of throwing that cache away.
 
