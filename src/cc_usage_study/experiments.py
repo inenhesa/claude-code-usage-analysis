@@ -1317,12 +1317,9 @@ def _pause_points(data: dict) -> list[dict]:
 
 def figure_cache_expiry(data: dict, path: Path, plt) -> None:
     """Hero chart: usage of the same small fix against pause length, with the 5-minute cache cliff."""
-    points = _pause_points(data)
-    fig, ax = plt.subplots(figsize=(10.6, 5.8))
-    ax.axvline(5.0, color=ORANGE, linewidth=1.2, linestyle=(0, (4, 3)), zorder=2)
-    ax.axhline(1.0, color=STONE, linewidth=1.0, zorder=1)
-    ax.text(0.2, 1.15, "New session = 1x", ha="left", va="bottom", fontsize=10, color=MUTED)
+    from matplotlib import font_manager as fm
 
+    points = _pause_points(data)
     inside = [p for p in points if p["pause_min"] < 5]
     outside = [p for p in points if p["pause_min"] >= 5]
     # Replicates at the same pause sit on top of each other; a small horizontal
@@ -1335,55 +1332,98 @@ def figure_cache_expiry(data: dict, path: Path, plt) -> None:
         if len(group) == 1:
             group[0]["plot_x"] = group[0]["pause_min"]
             continue
-        span = 0.28
+        span = 0.32
         step = span / (len(group) - 1)
         origin = group[0]["pause_min"] - span / 2
         for i, item in enumerate(group):
             item["plot_x"] = origin + i * step
-    for group, color, marker, label in (
-        (inside, SLATE, "o", "Inside the cache window"),
-        (outside, ORANGE, "o", "After the cache expired"),
-    ):
+
+    # 16:9 at 200 dpi = 3200x1800. Save at a fixed size so a caption cannot widen the canvas.
+    fig, ax = plt.subplots(figsize=(16, 9))
+    fig.patch.set_facecolor(CREAM)
+    ax.set_facecolor(CREAM)
+    serif = lambda size, weight="regular": fm.FontProperties(family="DM Serif Display", size=size, weight=weight)
+    sans = lambda size, weight="regular": fm.FontProperties(family="IBM Plex Sans", size=size, weight=weight)
+
+    ax.axvspan(0, 5.0, color=SLATE, alpha=0.085, zorder=0, linewidth=0)
+    ax.axhline(1.0, color=STONE, linewidth=1.4, zorder=1)
+    ax.axvline(5.0, color=ORANGE, linewidth=1.3, linestyle=(0, (3.5, 3.2)), zorder=2, alpha=0.9)
+
+    for group, color in ((inside, SLATE), (outside, ORANGE)):
         if not group:
             continue
         ax.scatter(
             [p["plot_x"] for p in group],
             [p["vs_clear"] for p in group],
-            s=88,
+            s=200,
             color=color,
-            marker=marker,
+            marker="o",
             zorder=4,
-            label=label,
             edgecolors=CREAM,
-            linewidths=0.8,
+            linewidths=1.15,
         )
 
-    ax.set_xlim(0, max([p["pause_min"] for p in points] + [13]) + 1.4)
-    ymax = max([p["vs_clear"] for p in points] + [10])
-    ax.set_ylim(0, ymax * 1.22)
-    ax.text(5.15, ymax * 1.12, "Cache expires (5 minutes on API keys)",
-            ha="left", va="top", fontsize=11, color=ORANGE)
-    ax.set_xlabel("Minutes away before the next small fix")
-    ax.set_ylabel("Usage compared with a new session")
+    ax.set_xlim(0, 15.2)
+    ax.set_ylim(0, 13.2)
     # Avoid the label "4x", which the docs tests ban in public text.
-    ticks = [1, 2, 5, 10] if ymax >= 8 else [1, 2, 5]
+    ticks = [1, 2, 5, 10]
     ax.set_yticks(ticks)
-    ax.set_yticklabels([f"{v}x" for v in ticks])
+    ax.set_yticklabels([f"{v}x" for v in ticks], fontproperties=sans(16))
+    ax.set_xticks([0, 2, 4, 6, 8, 10, 12, 14])
+    ax.set_xticklabels([str(v) for v in (0, 2, 4, 6, 8, 10, 12, 14)], fontproperties=sans(16))
+    ax.set_xlabel("Minutes away before the next small fix", fontproperties=sans(17), labelpad=12)
+    ax.set_ylabel("Usage compared with a new session", fontproperties=sans(17), labelpad=12)
     _clean(ax, grid_axis="y")
-    ax.legend(frameon=False, loc="upper left", fontsize=11, labelcolor=INK)
-    fig.suptitle("The same small fix jumps in usage when the cache expires",
-                 x=0.02, y=1.03, ha="left", **_serif(plt, 20))
-    n = len(points)
+    ax.tick_params(length=0, pad=8)
+    ax.grid(axis="y", color=GRID, linewidth=1.0)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontproperties(sans(16))
+        label.set_color(INK)
+
+    # Direct labels for the two levels, plus n, stacked in offset points so the
+    # pair stays tight regardless of the data scale.
     n_in, n_out = len(inside), len(outside)
-    fig.text(
-        0.02, -0.06,
-        "About 97,000 tokens of history. Each point is one live Opus 5.5 run of the same class of small fix. "
-        f"n={n} ({n_in} inside the 5-minute window, {n_out} after it). "
-        "Replicates at the same pause are spread slightly so both are visible. "
-        "The vertical line is the API-key cache lifetime.",
-        ha="left", va="top", fontsize=11, color=MUTED,
+
+    def stack(x, y, main, note, color):
+        ax.annotate(
+            main, xy=(x, y), xytext=(0, 20), textcoords="offset points",
+            ha="center", va="bottom", fontproperties=serif(36), color=color, zorder=5,
+        )
+        ax.annotate(
+            note, xy=(x, y), xytext=(0, 2), textcoords="offset points",
+            ha="center", va="bottom", fontproperties=sans(16), color=MUTED, zorder=5,
+        )
+
+    stack(3.15, 2.15, "~1.5x", f"n={n_in}", SLATE)
+    # Gap between the 6-minute and 10-minute points, just above the 10x line.
+    stack(8.15, 10.35, "~10x", f"n={n_out}", ORANGE)
+
+    ax.text(
+        2.5, 12.55,
+        "Cache window (5 min on API keys)",
+        ha="center", va="top", fontproperties=sans(15), color=SLATE, zorder=5,
     )
-    _save(fig, path, plt)
+    ax.text(
+        15.05, 1.28,
+        "New session, 1x",
+        ha="right", va="bottom", fontproperties=sans(16), color=MUTED, zorder=5,
+    )
+
+    fig.text(
+        0.08, 0.955,
+        "The same small fix jumps in usage when the cache expires",
+        ha="left", va="top", fontproperties=serif(30), color=INK,
+    )
+    fig.text(
+        0.08, 0.905,
+        "Live Opus 5.5   ·   about 97,000 tokens of history   ·   each point is one small fix",
+        ha="left", va="top", fontproperties=sans(15), color=MUTED,
+    )
+    fig.subplots_adjust(left=0.08, right=0.97, top=0.84, bottom=0.12)
+    fig.savefig(path, dpi=200, facecolor=CREAM, edgecolor=CREAM)
+    plt.close(fig)
+
+
 
 
 def write_figures(data: dict, out: Path) -> list[Path]:
