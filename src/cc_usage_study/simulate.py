@@ -727,10 +727,10 @@ def write_figures(summary: dict, out: Path) -> None:
             "xtick.labelsize": 11,
             "ytick.labelsize": 11,
             "legend.fontsize": 11,
-            "figure.facecolor": "white",
-            "savefig.facecolor": "white",
+            "figure.facecolor": "#FAF9F5",
+            "savefig.facecolor": "#FAF9F5",
             "savefig.edgecolor": "white",
-            "axes.facecolor": "white",
+            "axes.facecolor": "#FAF9F5",
             "text.color": "#1f2328",
             "axes.labelcolor": "#1f2328",
             "xtick.color": "#1f2328",
@@ -742,14 +742,14 @@ def write_figures(summary: dict, out: Path) -> None:
     # Two hues only. Green is the cheaper setting or the habit that wins; red is
     # the default that costs more, or the trap. Series differ by alpha, hatch,
     # or line style, never by a third hue.
-    green = "#1a7f37"
-    red = "#cf222e"
-    ink = "#1f2328"
-    muted = "#59636e"
-    axis_grey = "#d0d7de"
-    grid_grey = "#eaeef2"
-    green_tint = "#dafbe1"
-    red_tint = "#ffebe9"
+    green = "#3D3929"
+    red = "#D97757"
+    ink = "#141413"
+    muted = "#5E5D59"
+    axis_grey = "#D1CFC5"
+    grid_grey = "#E8E6DC"
+    green_tint = "#F0EFE8"
+    red_tint = "#F6E8E1"
     by_name = {row["name"]: row for row in summary["scenarios"]}
     figures = out / "figures"
     figures.mkdir(parents=True, exist_ok=True)
@@ -778,7 +778,7 @@ def write_figures(summary: dict, out: Path) -> None:
     def finish(fig, path: Path, note: str | None = FOOTER) -> None:
         if note:
             footer(fig, note)
-        fig.savefig(path, dpi=160, bbox_inches="tight", pad_inches=0.35, facecolor="white")
+        fig.savefig(path, dpi=160, bbox_inches="tight", pad_inches=0.35, facecolor="#FAF9F5")
         plt.close(fig)
 
     def title(ax, text: str) -> None:
@@ -892,7 +892,7 @@ def write_figures(summary: dict, out: Path) -> None:
     handles, labels_ = ax.get_legend_handles_labels()
     handles.append(Patch(facecolor=red, alpha=0.18, edgecolor="none"))
     labels_.append("under 100k: summaries cost more than they save")
-    ax.legend(handles, labels_, frameon=True, facecolor="white", edgecolor=axis_grey, framealpha=1,
+    ax.legend(handles, labels_, frameon=True, facecolor="#FAF9F5", edgecolor=axis_grey, framealpha=1,
               loc="upper right", fontsize=10.5)
     finish(fig, figures / "eoq_curve.png",
            "Modeled 60-turn session, 1-hour cache. Each curve is % of its own default. Weights 1 / 1.25 / 2 / r / 5.")
@@ -934,9 +934,9 @@ def write_figures(summary: dict, out: Path) -> None:
         handles=[
             Patch(facecolor=green, edgecolor=green, label="best fire point vs the default"),
             Patch(facecolor=red, edgecolor=red, label="setting forced too low vs the default"),
-            Patch(facecolor="white", edgecolor=red, hatch="////", label="pause trap vs the fix"),
+            Patch(facecolor="#FAF9F5", edgecolor=red, hatch="////", label="pause trap vs the fix"),
         ],
-        frameon=True, facecolor="white", edgecolor=axis_grey, framealpha=1, loc="upper right", fontsize=10.5,
+        frameon=True, facecolor="#FAF9F5", edgecolor=axis_grey, framealpha=1, loc="upper right", fontsize=10.5,
     )
     finish(fig, figures / "scenario_comparison.png",
            "Bars past +100% are cut; the label gives the full size. " + FOOTER)
@@ -1034,7 +1034,7 @@ def write_figures(summary: dict, out: Path) -> None:
     ax.set_xlabel("History carried into the next task, tokens", labelpad=8)
     ax.set_ylabel("Next-task usage, % of a fresh session (cache-weighted)", labelpad=8)
     title(ax, "Resume only while the cache is warm and the history is small")
-    ax.legend(frameon=True, facecolor="white", edgecolor=axis_grey, framealpha=1, loc="upper left", fontsize=10.5)
+    ax.legend(frameon=True, facecolor="#FAF9F5", edgecolor=axis_grey, framealpha=1, loc="upper left", fontsize=10.5)
     finish(fig, figures / "resume_crossover.png",
            f"5-call next task, 5m cache, 0.05x reads. On the 1h cache stale resume stops paying at "
            f"{stale_1h['saved_calls_2']['crossover_history_tokens'] / 1000:.1f}k. Lines modeled. "

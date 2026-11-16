@@ -3717,5 +3717,195 @@
       "compact_boundaries": 0,
       "max_gap_between_turns_s": 4
     }
+  },
+  "dose_response_runs": {
+    "date": "2026-11-15",
+    "model": "claude-opus-5-5",
+    "claude_cli": "2.1.325",
+    "prompt_cache_ttl": "5m",
+    "effort": "medium",
+    "design": "Two sessions each built about 97k tokens of context on the same codebase task as ttl_runs. Each session then ran the same three small fixes, in order, after pauses of 2, 4, and 6 minutes from the previous call. 2 and 4 minutes are inside the 5-minute cache window; 6 minutes is past it. Each fix is scored against the matching new-session run in ttl_runs.clear. Each session started with a unique tag so it could not share a cache prefix with another session.",
+    "units_note": "cache-weighted units, Opus 5.5 weights input 1, 5m write 1.25, 1h write 2, read 0.05, output 5; read weight sensitivity 0.1 and 0.025",
+    "invariants": {
+      "one_hour_cache_write_tokens": 0,
+      "compact_boundaries": 0,
+      "tests_passed": "all"
+    },
+    "points": [
+      {
+        "series": "A",
+        "task": "median_bug",
+        "kind": "hot",
+        "assistant_calls": 3,
+        "pause_before_s": 123,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 1333,
+          "cache_write_1h": 0,
+          "cache_read": 292139,
+          "output": 506
+        },
+        "raw_tokens": 293984,
+        "units": 18809,
+        "units_by_read_weight": {
+          "0.1": 33416.2,
+          "0.05": 18809.2,
+          "0.025": 11505.7
+        },
+        "first_call": {
+          "cache_write_5m": 674,
+          "cache_read": 96862
+        },
+        "end_context_tokens": 98338,
+        "compact_boundaries": 0,
+        "history_tokens": 97538,
+        "vs_clear": 1.5079
+      },
+      {
+        "series": "A",
+        "task": "slice_bug",
+        "kind": "hot",
+        "assistant_calls": 3,
+        "pause_before_s": 243,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 923,
+          "cache_write_1h": 0,
+          "cache_read": 295389,
+          "output": 520
+        },
+        "raw_tokens": 296838,
+        "units": 18529,
+        "units_by_read_weight": {
+          "0.1": 33298.7,
+          "0.05": 18529.2,
+          "0.025": 11144.5
+        },
+        "first_call": {
+          "cache_write_5m": 299,
+          "cache_read": 98195
+        },
+        "end_context_tokens": 99314,
+        "compact_boundaries": 0,
+        "history_tokens": 98496,
+        "vs_clear": 1.4948
+      },
+      {
+        "series": "A",
+        "task": "keep_currency",
+        "kind": "stale",
+        "assistant_calls": 3,
+        "pause_before_s": 383,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 88901,
+          "cache_write_1h": 0,
+          "cache_read": 210546,
+          "output": 738
+        },
+        "raw_tokens": 300191,
+        "units": 125350,
+        "units_by_read_weight": {
+          "0.1": 135876.9,
+          "0.05": 125349.6,
+          "0.025": 120085.9
+        },
+        "first_call": {
+          "cache_write_5m": 88095,
+          "cache_read": 11388
+        },
+        "end_context_tokens": 100520,
+        "compact_boundaries": 0,
+        "history_tokens": 99485,
+        "vs_clear": 9.7602
+      },
+      {
+        "series": "B",
+        "task": "median_bug",
+        "kind": "hot",
+        "assistant_calls": 3,
+        "pause_before_s": 123,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 1399,
+          "cache_write_1h": 0,
+          "cache_read": 292232,
+          "output": 506
+        },
+        "raw_tokens": 294143,
+        "units": 18896,
+        "units_by_read_weight": {
+          "0.1": 33507.9,
+          "0.05": 18896.3,
+          "0.025": 11590.5
+        },
+        "first_call": {
+          "cache_write_5m": 739,
+          "cache_read": 96850
+        },
+        "end_context_tokens": 98390,
+        "compact_boundaries": 0,
+        "history_tokens": 97591,
+        "vs_clear": 1.5148
+      },
+      {
+        "series": "B",
+        "task": "slice_bug",
+        "kind": "hot",
+        "assistant_calls": 3,
+        "pause_before_s": 243,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 917,
+          "cache_write_1h": 0,
+          "cache_read": 295547,
+          "output": 496
+        },
+        "raw_tokens": 296966,
+        "units": 18410,
+        "units_by_read_weight": {
+          "0.1": 33186.9,
+          "0.05": 18409.6,
+          "0.025": 11020.9
+        },
+        "first_call": {
+          "cache_write_5m": 297,
+          "cache_read": 98249
+        },
+        "end_context_tokens": 99338,
+        "compact_boundaries": 0,
+        "history_tokens": 98548,
+        "vs_clear": 1.4852
+      },
+      {
+        "series": "B",
+        "task": "keep_currency",
+        "kind": "stale",
+        "assistant_calls": 3,
+        "pause_before_s": 383,
+        "tokens": {
+          "input": 6,
+          "cache_write_5m": 89067,
+          "cache_write_1h": 0,
+          "cache_read": 210674,
+          "output": 810
+        },
+        "raw_tokens": 300557,
+        "units": 125923,
+        "units_by_read_weight": {
+          "0.1": 136457.1,
+          "0.05": 125923.4,
+          "0.025": 120656.6
+        },
+        "first_call": {
+          "cache_write_5m": 88159,
+          "cache_read": 11388
+        },
+        "end_context_tokens": 100652,
+        "compact_boundaries": 0,
+        "history_tokens": 99549,
+        "vs_clear": 9.8048
+      }
+    ]
   }
 }

@@ -44,6 +44,7 @@ FIGURE_NAMES = (
     "live_clear_vs_warm.png",
     "hero_coffee_break.png",
     "live_mid_session.png",
+    "hero_cache_expiry.png",
 )
 
 CLI_VERSION = "2.1.325"
@@ -833,27 +834,35 @@ def normalize(data: dict) -> dict:
 # ----------------------------------------------------------------------------- figures
 
 # Two hues only, plus neutral ink and greys. Series differ by alpha or hatch.
-GREEN = "#1a7f37"
-RED = "#cf222e"
-INK = "#1f2328"
-MUTED = "#59636e"
-GRID = "#eaeef2"
-AXIS = "#d0d7de"
+# Claude palette (matches the README explainer).
+ORANGE = "#D97757"
+SLATE = "#3D3929"
+CREAM = "#FAF9F5"
+INK = "#141413"
+MUTED = "#5E5D59"
+STONE = "#D1CFC5"
+GRID = "#E8E6DC"
+AXIS = "#D1CFC5"
+# Lower usage / expected = slate; higher usage / cache miss = terracotta.
+GREEN = SLATE
+RED = ORANGE
 FOOTER = "Weights 1 / 1.25 / 0.05 / 5 (Opus 5.5). Range across models in README."
 
 
 def _style(plt) -> None:
     plt.rcParams.update(
         {
-            "font.family": "DejaVu Sans",
+            "font.family": "sans-serif",
+            "font.sans-serif": ["DejaVu Sans", "IBM Plex Sans", "Arial"],
+            "font.serif": ["DM Serif Display", "IBM Plex Serif", "DejaVu Serif", "Georgia"],
             "font.size": 11.5,
-            "axes.titlesize": 14,
+            "axes.titlesize": 16,
             "axes.labelsize": 11.5,
             "xtick.labelsize": 11,
             "ytick.labelsize": 11,
-            "figure.facecolor": "white",
-            "savefig.facecolor": "white",
-            "axes.facecolor": "white",
+            "figure.facecolor": CREAM,
+            "savefig.facecolor": CREAM,
+            "axes.facecolor": CREAM,
             "text.color": INK,
             "axes.labelcolor": INK,
             "xtick.color": INK,
@@ -862,6 +871,10 @@ def _style(plt) -> None:
             "text.parse_math": False,
         }
     )
+
+
+def _serif(plt, size=18, weight="regular"):
+    return {"fontfamily": "serif", "fontsize": size, "fontweight": weight, "color": INK}
 
 
 def _clean(ax, grid_axis: str = "x") -> None:
@@ -875,7 +888,7 @@ def _clean(ax, grid_axis: str = "x") -> None:
 
 
 def _save(fig, path: Path, plt) -> None:
-    fig.savefig(path, dpi=170, bbox_inches="tight", pad_inches=0.4, facecolor="white")
+    fig.savefig(path, dpi=170, bbox_inches="tight", pad_inches=0.4, facecolor=CREAM)
     plt.close(fig)
 
 
@@ -1263,6 +1276,116 @@ def figure_mid_session(data: dict, path: Path, plt) -> None:
     _save(fig, path, plt)
 
 
+def _clear_baselines(data: dict) -> dict[str, float]:
+    ttl = data.get("ttl_runs") or {}
+    return {run["task"]: run["units"] for run in ttl.get("clear") or []}
+
+
+def _pause_points(data: dict) -> list[dict]:
+    """One point per live resume of a small fix, scored against the matching fresh session."""
+    ttl = data.get("ttl_runs") or {}
+    clear = _clear_baselines(data)
+    default_clear = (sum(clear.values()) / len(clear)) if clear else 1.0
+    points: list[dict] = []
+
+    def add(pause_s: float, units: float, task: str, source: str, first: dict | None = None) -> None:
+        baseline = clear.get(task, default_clear)
+        first = first or {}
+        read = float(first.get("cache_read") or 0)
+        write = float(first.get("cache_write_5m") or 0)
+        points.append(
+            {
+                "pause_min": pause_s / 60.0,
+                "vs_clear": units / baseline if baseline else None,
+                "units": units,
+                "task": task,
+                "source": source,
+                "cache_read_share": read / (read + write) if (read + write) else None,
+            }
+        )
+
+    hot = ttl.get("hot")
+    if hot:
+        add(hot["pause_before_s"], hot["units"], hot.get("task") or "median_bug", "ttl", hot.get("first_call"))
+    for stale, fresh in zip(ttl.get("stale") or [], ttl.get("clear") or []):
+        add(stale["pause_before_s"], stale["units"], stale["task"], "ttl", stale.get("first_call"))
+    dose = data.get("dose_response_runs") or {}
+    for run in dose.get("points") or []:
+        add(run["pause_before_s"], run["units"], run["task"], "dose", run.get("first_call"))
+    return [p for p in points if p["vs_clear"] is not None]
+
+
+def figure_cache_expiry(data: dict, path: Path, plt) -> None:
+    """Hero chart: usage of the same small fix against pause length, with the 5-minute cache cliff."""
+    points = _pause_points(data)
+    fig, ax = plt.subplots(figsize=(10.6, 5.8))
+    ax.axvline(5.0, color=ORANGE, linewidth=1.2, linestyle=(0, (4, 3)), zorder=2)
+    ax.axhline(1.0, color=STONE, linewidth=1.0, zorder=1)
+    ax.text(0.2, 1.15, "New session = 1x", ha="left", va="bottom", fontsize=10, color=MUTED)
+
+    inside = [p for p in points if p["pause_min"] < 5]
+    outside = [p for p in points if p["pause_min"] >= 5]
+    # Replicates at the same pause sit on top of each other; a small horizontal
+    # dodge makes the sample size visible without changing the measured times.
+    by_bucket: dict[int, list[dict]] = {}
+    for point in points:
+        by_bucket.setdefault(round(point["pause_min"] * 5), []).append(point)
+    for group in by_bucket.values():
+        group.sort(key=lambda item: (item["vs_clear"], item["source"], item["task"]))
+        if len(group) == 1:
+            group[0]["plot_x"] = group[0]["pause_min"]
+            continue
+        span = 0.28
+        step = span / (len(group) - 1)
+        origin = group[0]["pause_min"] - span / 2
+        for i, item in enumerate(group):
+            item["plot_x"] = origin + i * step
+    for group, color, marker, label in (
+        (inside, SLATE, "o", "Inside the cache window"),
+        (outside, ORANGE, "o", "After the cache expired"),
+    ):
+        if not group:
+            continue
+        ax.scatter(
+            [p["plot_x"] for p in group],
+            [p["vs_clear"] for p in group],
+            s=88,
+            color=color,
+            marker=marker,
+            zorder=4,
+            label=label,
+            edgecolors=CREAM,
+            linewidths=0.8,
+        )
+
+    ax.set_xlim(0, max([p["pause_min"] for p in points] + [13]) + 1.4)
+    ymax = max([p["vs_clear"] for p in points] + [10])
+    ax.set_ylim(0, ymax * 1.22)
+    ax.text(5.15, ymax * 1.12, "Cache expires (5 minutes on API keys)",
+            ha="left", va="top", fontsize=11, color=ORANGE)
+    ax.set_xlabel("Minutes away before the next small fix")
+    ax.set_ylabel("Usage compared with a new session")
+    # Avoid the label "4x", which the docs tests ban in public text.
+    ticks = [1, 2, 5, 10] if ymax >= 8 else [1, 2, 5]
+    ax.set_yticks(ticks)
+    ax.set_yticklabels([f"{v}x" for v in ticks])
+    _clean(ax, grid_axis="y")
+    ax.legend(frameon=False, loc="upper left", fontsize=11, labelcolor=INK)
+    fig.suptitle("The same small fix jumps in usage when the cache expires",
+                 x=0.02, y=1.03, ha="left", **_serif(plt, 20))
+    n = len(points)
+    n_in, n_out = len(inside), len(outside)
+    fig.text(
+        0.02, -0.06,
+        "About 97,000 tokens of history. Each point is one live Opus 5.5 run of the same class of small fix. "
+        f"n={n} ({n_in} inside the 5-minute window, {n_out} after it). "
+        "Replicates at the same pause are spread slightly so both are visible. "
+        "The vertical line is the API-key cache lifetime.",
+        ha="left", va="top", fontsize=11, color=MUTED,
+    )
+    _save(fig, path, plt)
+
+
 def write_figures(data: dict, out: Path) -> list[Path]:
     import matplotlib
 
@@ -1279,6 +1402,7 @@ def write_figures(data: dict, out: Path) -> list[Path]:
     figure_clear_vs_warm(data, paths[2], plt)
     figure_hero(data, paths[3], plt)
     figure_mid_session(data, paths[4], plt)
+    figure_cache_expiry(data, paths[5], plt)
     return paths
 
 
@@ -1307,7 +1431,7 @@ def main(argv: list[str] | None = None) -> int:
         if previous.is_file():
             # The cache-expiry and /compact runs come from separate runners; keep them across a rebuild.
             old = load(previous)
-            for key in ("ttl_runs", "compact_runs", "tool_output_runs", "mid_session_runs"):
+            for key in ("ttl_runs", "compact_runs", "tool_output_runs", "mid_session_runs", "dose_response_runs"):
                 if key not in data and old.get(key):
                     data[key] = old[key]
         (out / DATASET_NAME).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

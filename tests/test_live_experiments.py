@@ -4,6 +4,7 @@ from pathlib import Path
 
 from cc_usage_study.experiments import (
     FIGURE_NAMES,
+    _pause_points,
     main,
     normalize,
     predicted_threshold,
@@ -329,3 +330,58 @@ def test_tool_output_and_mid_session_runs_hold():
         assert summary[key]["cache_hit_pct_range"][0] > 99
         assert summary[key]["vs_control_mean"] < 1.2
     assert mid["model_switch"]["measured"] is False
+
+def test_dose_response_runs_hold_their_invariants():
+    data = _data()
+    dose = data["dose_response_runs"]
+    ttl = data["ttl_runs"]
+    assert dose["model"] == "claude-opus-5-5"
+    assert dose["prompt_cache_ttl"] == "5m"
+    assert dose["claude_cli"] == "2.1.325"
+    inv = dose["invariants"]
+    assert inv["one_hour_cache_write_tokens"] == 0
+    assert inv["compact_boundaries"] == 0
+    assert inv["tests_passed"] == "all"
+    points = dose["points"]
+    assert len(points) == 6
+    assert {p["series"] for p in points} == {"A", "B"}
+    clear = {run["task"]: run["units"] for run in ttl["clear"]}
+    by_pause = {}
+    for run in points:
+        assert run["tokens"]["cache_write_1h"] == 0
+        assert run["compact_boundaries"] == 0
+        assert run["raw_tokens"] == sum(run["tokens"].values())
+        assert run["history_tokens"] > 95_000
+        assert run["assistant_calls"] == 3
+        for weight, units in run["units_by_read_weight"].items():
+            assert abs(weighted_units(run["tokens"], float(weight)) - units) < 0.2
+        assert run["units"] == round(run["units_by_read_weight"]["0.05"])
+        assert abs(run["vs_clear"] - run["units"] / clear[run["task"]]) < 0.0001
+        by_pause.setdefault(run["pause_before_s"], []).append(run)
+        if run["pause_before_s"] < 300:
+            assert run["kind"] == "hot"
+            assert run["first_call"]["cache_read"] > 90_000
+            assert run["first_call"]["cache_write_5m"] < 1_000
+            assert 1.4 < run["vs_clear"] < 1.6
+        else:
+            assert run["kind"] == "stale"
+            assert run["first_call"]["cache_write_5m"] > 85_000
+            assert run["first_call"]["cache_read"] < 12_000
+            assert 9.5 < run["vs_clear"] < 10.5
+    assert set(by_pause) == {123, 243, 383}
+    assert all(len(runs) == 2 for runs in by_pause.values())
+    # Combined with the earlier ttl_runs points, the cliff is n=5 inside and n=5 after.
+    combined = _pause_points(data)
+    inside = [p for p in combined if p["pause_min"] < 5]
+    outside = [p for p in combined if p["pause_min"] >= 5]
+    assert len(inside) == 5 and len(outside) == 5
+    assert 1.48 < min(p["vs_clear"] for p in inside) <= max(p["vs_clear"] for p in inside) < 1.53
+    assert 9.75 < min(p["vs_clear"] for p in outside) <= max(p["vs_clear"] for p in outside) < 9.93
+
+
+def test_dose_response_runs_carry_no_dollars_or_ids():
+    text = json.dumps(_data()["dose_response_runs"])
+    assert "usd" not in text.lower()
+    assert "session_id" not in text and "sessionId" not in text
+    assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", text)
+    assert "/" + "tmp/" not in text and "/" + "home/" not in text

@@ -77,8 +77,8 @@ def test_no_private_material_in_public_pages():
 
 def test_readme_leads_with_practices_and_embeds_the_charts():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert readme.startswith("# Claude Code usage: best practices and anti-patterns")
-    hero = readme.index("outputs/figures/hero_coffee_break.png")
+    assert readme.startswith("# A 10-minute break makes a small Claude Code fix use 10 times as much")
+    hero = readme.index("outputs/figures/hero_cache_expiry.png")
     practices = readme.index("## Best practices")
     check = readme.index("## Check your own habits: paste this into Claude Code")
     myths = readme.index("## Myths and unknowns")
@@ -94,7 +94,7 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "Everyone uses Claude Code differently" in self_check
     assert "~/.claude/skills" in self_check
     assert "/claude-code-usage-check" in self_check
-    assert readme.index("### 1. The coffee-break tax") > evidence
+    assert readme.index("### Cache expiry after a break") > evidence
     assert "### Does the model hold up?" in readme[evidence:]
     # Promote the CLI / T3 Code over Desktop, without inventing a chat-app number.
     top = readme[:evidence]
@@ -104,6 +104,7 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "We did not test the Claude chat app." in top
     assert "1.19x the CLI" in top and "at least 1.80x" in top
     for figure in (
+        "hero_cache_expiry.png",
         "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",
         "resume_crossover.png",
@@ -164,14 +165,14 @@ def test_readme_internal_anchors_resolve():
         "check-your-own-habits-paste-this-into-claude-code",
         "myths-and-unknowns",
         "the-evidence",
-        "1-the-coffee-break-tax",
+        "cache-expiry-after-a-break",
         "compact-before-or-after-the-break",
         "does-this-apply-to-you",
         "does-the-model-hold-up",
-        "2-compaction-measured-live",
-        "3-clear-vs-a-warm-session",
-        "4-three-clients-one-bugfix",
-        "6-hypotheses-compaction-settings-and-sweet-spots",
+        "compaction-measured-live",
+        "clear-vs-a-warm-session",
+        "three-clients-one-bugfix",
+        "compaction-settings-and-sweet-spots",
         "honest-limits",
         "reproduce",
     ):
