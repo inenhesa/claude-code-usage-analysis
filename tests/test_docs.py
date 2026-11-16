@@ -78,13 +78,15 @@ def test_no_private_material_in_public_pages():
 def test_readme_leads_with_practices_and_embeds_the_charts():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert readme.startswith("# A 10-minute break makes a small Claude Code fix use 10 times as much")
-    hero = readme.index("outputs/figures/hero_cache_expiry.png")
+    hero = readme.index("outputs/figures/explainer.svg")
     practices = readme.index("## Best practices")
     check = readme.index("## Check your own habits: paste this into Claude Code")
     myths = readme.index("## Myths and unknowns")
     copy_paste = readme.index("## Copy-paste")
     evidence = readme.index("## The evidence")
     assert hero < practices < check < myths < copy_paste < evidence
+    # The dose-response chart belongs in the evidence section, not at the top.
+    assert readme.index("outputs/figures/hero_cache_expiry.png") > evidence
     assert "## Anti-patterns" not in readme
     # Title, hero, and the paired practices list stay short; the self-check prompt follows.
     assert readme[:check].count("\n") < 25
@@ -104,6 +106,7 @@ def test_readme_leads_with_practices_and_embeds_the_charts():
     assert "We did not test the Claude chat app." in top
     assert "1.19x the CLI" in top and "at least 1.80x" in top
     for figure in (
+        "explainer.svg",
         "hero_cache_expiry.png",
         "hero_coffee_break.png",
         "ttl_price_of_a_pause.png",

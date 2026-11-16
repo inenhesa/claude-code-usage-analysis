@@ -1,8 +1,8 @@
 # A 10-minute break makes a small Claude Code fix use 10 times as much
 
-Claude Code usage is driven by cache misses, not by how much you type. The expensive habits are ways of throwing that cache away.
+<p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer: a 5-minute cache holds your Claude Code session. A small fix is 1.5x while the cache is warm. After the cache expires, the same fix is about 10x. Run /compact before a break, or /clear plus a 3-line note after one." width="100%"></p>
 
-![The same small fix on a session of about 97,000 tokens. Inside the 5-minute cache window, usage stays near 1.5 times a new session. After the cache expires, it jumps to about 10 times. Each point is one live Opus 5.5 run.](outputs/figures/hero_cache_expiry.png)
+Claude Code usage is driven by cache misses, not by how much you type. The expensive habits are ways of throwing that cache away.
 
 ## Best practices
 
@@ -88,11 +88,11 @@ This is the data behind the rules above. You do not need to read it to use the r
 
 **Methods in brief.** All live runs used Claude Opus 5.5, effort medium, Claude Code 2.1.325, and the default 5-minute prompt cache, on a dedicated API key. "Usage" is cache-weighted units (1 / 1.25 / 2 / 0.05 / 5): input 1, 5-minute write 1.25, 1-hour write 2, read 0.05, output 5. That is list price divided by the Opus 5.5 input price. We report the mean and the min-to-max range. Findings with n under 3 are marked preliminary. The analyzer never copies prompt text.
 
-<p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer: a 10-minute break makes your next Claude Code fix use 10x more usage. Run /compact before a break, /clear plus a 3-line handoff after one, and use the plain CLI." width="100%"></p>
-
 ### Cache expiry after a break
 
-The chart at the top is the main result. Usage of the same class of small fix, on a session of about 97,000 tokens of history, stays near 1.5 times a new session while the cache is warm. After the 5-minute cache expires, it jumps to about 10 times. The jump is a cache miss: the first request after a long pause writes the history again, instead of reading it cheaply.
+The chart below is the main result. Usage of the same class of small fix, on a session of about 97,000 tokens of history, stays near 1.5 times a new session while the cache is warm. After the 5-minute cache expires, it jumps to about 10 times. The jump is a cache miss: the first request after a long pause writes the history again, instead of reading it cheaply.
+
+![The same small fix on a session of about 97,000 tokens. Inside the 5-minute cache window, usage stays near 1.5 times a new session. After the cache expires, it jumps to about 10 times. Each point is one live Opus 5.5 run.](outputs/figures/hero_cache_expiry.png)
 
 | Pause before the next fix | Usage vs a new session | n | First request after the pause |
 | --- | ---: | ---: | --- |
