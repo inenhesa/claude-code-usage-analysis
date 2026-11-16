@@ -31,11 +31,13 @@ STYLE_COLORS = """
 
 ALT = (
     "Animated explainer. The problem: after a 10-minute break, the next small Claude Code fix uses about 10x "
-    "a fresh start. Why: Claude Code caches your session for 5 minutes; after that the whole history is sent "
-    "again. Fresh start 1x, back within 5 minutes 1.5x, back after 10 minutes about 10x. What to do: avoid "
-    "resuming after a break (about 10x), /compact after a break (about 10x), and turning off a tool mid-task "
-    "(22x). Do run /compact before a break (2.5x), /clear plus a 3-line note after one (1x), and stay in the "
-    "session for quick fixes in a row (28% less). Star this repo if you found it useful."
+    "a fresh start (measured on a 97k-token session). Why: with an API key the session is cached for 5 minutes "
+    "(1 hour on a subscription); after that the whole history is sent again. Fresh start 1x, back within "
+    "5 minutes 1.5x, back after 10 minutes about 10x. What to do: avoid resuming after a break (about 10x), "
+    "/compact after a break (about 10x), and turning off a tool mid-task (22x a normal turn, 2 runs). Do run "
+    "/compact before a break (2.5x), /clear plus a 3-line note after one (about 1x, a fresh start), and stay "
+    "in the session for quick fixes in a row (28% less than /clear between fixes, 1 run). "
+    "Star this repo if you found it useful."
 )
 
 
@@ -94,6 +96,7 @@ def build() -> str:
         + _text(W / 2, 250, "Resume a session after a 10-minute break:", 50, "ink", 600, "middle")
         + _text(W / 2, 450, "10x", 200, "acc", 800, "middle")
         + _text(W / 2, 525, "the usage of the same fix in a fresh session", 36, "muted", 400, "middle")
+        + _text(W / 2, 572, "measured on a 97k-token session", 24, "muted", 400, "middle")
         + _dots(0)
         + "</g>"
     )
@@ -103,7 +106,7 @@ def build() -> str:
     rows = [("Fresh start", 1.0, "1x", "bar"), ("Back within 5 min", 1.5, "1.5x", "bar"), ("Back after 10 min", 10.0, "~10x", "acc")]
     chart = []
     for i, (name, value, shown, cls) in enumerate(rows):
-        y = 330 + i * 90
+        y = 300 + i * 90
         chart.append(_text(80, y + 40, name, 32, "ink", 500))
         width = 62 * value
         chart.append(f'<rect x="420" y="{y}" width="{width:.0f}" height="56" rx="8" class="{cls}"/>')
@@ -111,9 +114,10 @@ def build() -> str:
     parts.append(
         f'<g class="{f}">'
         + _label("WHY")
-        + _text(80, 180, "Claude Code caches your session for 5 minutes.", 42, "ink", 600)
+        + _text(80, 180, "Your session is cached for 5 minutes (API key).", 42, "ink", 600)
         + _text(80, 240, "After that, the whole history is sent again.", 42, "ink", 600)
         + "".join(chart)
+        + _text(80, 590, "On a subscription the cache lasts 1 hour.", 24, "muted", 400)
         + _dots(1)
         + "</g>"
     )
@@ -121,21 +125,30 @@ def build() -> str:
     # 3. What to do: anti-patterns and best practices
     start, end = FRAMES[2]
     f = anim.window(start, end)
-    avoid = [("~10x", "Resume after a break"), ("~10x", "/compact after a break"), ("22x", "Turn off a tool mid-task")]
-    do = [("2.5x", "/compact before a break"), ("1x", "/clear + 3-line note"), ("-28%", "Same session, quick fixes")]
+    avoid = [
+        ("~10x", "Resume after a break", "vs a fresh start"),
+        ("~10x", "/compact after a break", "vs a fresh start"),
+        ("22x", "Turn off a tool mid-task", "vs a normal turn, 2 runs"),
+    ]
+    do = [
+        ("2.5x", "/compact before a break", "vs a fresh start"),
+        ("~1x", "/clear + 3-line note", "it is a fresh start"),
+        ("-28%", "Same session, quick fixes", "vs /clear between fixes, 1 run"),
+    ]
     cols = []
     for col, (x, head, mark, cls, items) in enumerate(
         [(80, "Avoid", "✕", "acc", avoid), (640, "Do", "✓", "good", do)]
     ):
         cols.append(f'<rect x="{x - 24}" y="140" width="528" height="430" rx="18" class="card" stroke-width="2"/>')
         cols.append(_text(x, 210, f"{mark}  {head}", 46, cls, 800))
-        for i, (num, what) in enumerate(items):
+        for i, (num, what, vs) in enumerate(items):
             item = anim.window(start + 0.6 + 0.35 * (3 * col + i), end)
             y = 300 + i * 95
             cols.append(
                 f'<g class="{item}">'
                 + _text(x, y, num, 36, cls, 800)
                 + _text(x + 118, y, what, 30, "ink", 500)
+                + _text(x + 118, y + 32, vs, 22, "muted", 400)
                 + "</g>"
             )
     parts.append(f'<g class="{f} static">' + _label("WHAT TO DO") + "".join(cols) + _dots(2) + "</g>")
