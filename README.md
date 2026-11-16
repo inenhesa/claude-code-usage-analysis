@@ -1,4 +1,4 @@
-# A 10-minute break makes a small Claude Code fix use 10 times as much
+# Claude Code usage anti-patterns and best-practices
 
 <p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer. Resume a session after a 10-minute break and the same small fix uses about 10x a fresh session (measured on a 97k-token session), because the cache expired (5 minutes on an API key, 1 hour on a subscription) and the whole history is sent again. Avoid: resuming after a break, /compact after a break, turning off a tool mid-task (22x a normal turn). Do: /compact before a break (2.5x), /clear plus a 3-line note after one (a fresh start), stay in the session for quick fixes in a row (28% less than /clear between fixes). Star this repo if you found it useful." width="100%"></p>
 
@@ -6,14 +6,16 @@ Claude Code usage is driven by cache misses, not by how much you type. The expen
 
 ## Best practices
 
-- **Before a break, run [`/compact`](https://code.claude.com/docs/en/commands).** It replaces the chat history with a short summary, so a later cache miss is small. The next fix used 2.5x. Without it, it used about 10x. (3 runs) [(details)](#compact-before-or-after-the-break)
-- **After a break, start a new session.** Run [`/clear`](https://code.claude.com/docs/en/commands) and write 3 lines: the goal, what is done, what is next. Running `/compact` after the break does not help: it still used about 10x. (3 runs, 2 for `/compact`) [(details)](#cache-expiry-after-a-break)
-- **For several small related fixes in a row, keep the same session.** It used 28% less than running `/clear` between fixes. (1 run, small history only, preliminary) [(details)](#clear-vs-a-warm-session)
-- **For scheduled `claude -p` jobs, start a new session each run.** Keep notes in a file. Continuing the last session with `--resume` costs about 3x. (estimate) Not tested live. [(details)](#cache-expiry-after-a-break)
-- **Keep tool output short.** Long output stays in the chat and is sent again on every later turn. A failing test log of about 750 tokens made that turn and the next 5 use 15% more than a 1-line summary. A log of about 5,000 tokens made them use 64% more. (2 runs each, preliminary) [(details)](#long-tool-output)
-- **Do not turn off a tool or switch models in the middle of a task.** Turning off one tool made the next turn use 22x a normal turn (21.8x to 22.2x), because the whole chat was processed again. Anthropic's docs say switching models does the same. We did not test that. (2 runs, preliminary) [(details)](#switching-models-effort-or-tools)
-- **Use the Claude Code CLI.** It used the least of the three tools we tested. T3 Code used 1.19x the CLI. The Desktop Code tab used at least 1.80x. Its first request was about twice as large (39,749 vs 19,528 tokens). We did not test the Claude chat app. (1 run, preliminary) [(details)](#three-clients-one-bugfix)
-- **Raw token counts are misleading.** Two runs with the same raw tokens (about 294,000) differed 6.5x in usage, because cached tokens cost far less. [(details)](#the-evidence)
+| ✅ Do | ❌ Don't | Usage | Evidence |
+| --- | --- | --- | --- |
+| Run [`/compact`](https://code.claude.com/docs/en/commands) before a break | Leave and resume later | 2.5x vs about 10x | 3 runs [(details)](#compact-before-or-after-the-break) |
+| After a break, [`/clear`](https://code.claude.com/docs/en/commands) and write 3 lines: goal, done, next | Run `/compact` after the break | about 1x vs about 10x | 3 runs, 2 for `/compact` [(details)](#cache-expiry-after-a-break) |
+| Keep one session for small related fixes in a row | `/clear` between them | 28% less | 1 run, small history, preliminary [(details)](#clear-vs-a-warm-session) |
+| Start scheduled `claude -p` jobs fresh, notes in a file | Continue the last run with `--resume` | about 3x | (estimate) not tested live [(details)](#cache-expiry-after-a-break) |
+| Keep tool output short (a 1-line summary) | Leave long logs in the chat | +15% (750-token log) to +64% (5,000) over the next 6 turns | 2 runs each, preliminary [(details)](#long-tool-output) |
+| Pick tools and model at the start | Turn off a tool or switch models mid-task | 22x a normal turn | 2 runs, preliminary; model switch from docs, not tested [(details)](#switching-models-effort-or-tools) |
+| Use the Claude Code CLI | Use the Desktop Code tab | Desktop at least 1.80x, T3 Code 1.19x the CLI | 1 run, preliminary. We did not test the Claude chat app. [(details)](#three-clients-one-bugfix) |
+| Compare usage | Compare raw token counts | same raw tokens, 6.5x apart in usage | cached tokens cost far less [(details)](#the-evidence) |
 
 ## Check your own habits: paste this into Claude Code
 

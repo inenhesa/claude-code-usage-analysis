@@ -30,8 +30,8 @@ STYLE_COLORS = """
 """
 
 ALT = (
-    "Animated explainer. The problem: after a 10-minute break, the next small Claude Code fix uses about 10x "
-    "a fresh start (measured on a 97k-token session). Why: with an API key the session is cached for 5 minutes "
+    "Animated explainer. The problem: after a 10-minute break, the same small Claude Code fix uses about 10 times as much of your usage limit as "
+    "in a new session (the resumed session held 97k tokens). Why: with an API key the session is cached for 5 minutes "
     "(1 hour on a subscription); after that the whole history is sent again. Fresh start 1x, back within "
     "5 minutes 1.5x, back after 10 minutes about 10x. What to do: avoid resuming after a break (about 10x), "
     "/compact after a break (about 10x), and turning off a tool mid-task (22x a normal turn, 2 runs). Do run "
@@ -90,13 +90,19 @@ def build() -> str:
 
     # 1. The problem
     f = anim.window(*FRAMES[0])
+    blocks = []
+    for row, (name, count, cls) in enumerate([("In a new session", 1, "bar"), ("After a 10-min break", 10, "acc")]):
+        y = 330 + row * 100
+        blocks.append(_text(80, y + 42, name, 32, "ink", 500))
+        for i in range(count):
+            blocks.append(f'<rect x="{430 + i * 66}" y="{y}" width="56" height="56" rx="8" class="{cls}"/>')
     parts.append(
         f'<g class="{f}">'
         + _label("THE PROBLEM")
-        + _text(W / 2, 250, "Resume a session after a 10-minute break:", 50, "ink", 600, "middle")
-        + _text(W / 2, 450, "10x", 200, "acc", 800, "middle")
-        + _text(W / 2, 525, "the usage of the same fix in a fresh session", 36, "muted", 400, "middle")
-        + _text(W / 2, 572, "measured on a 97k-token session", 24, "muted", 400, "middle")
+        + _text(80, 180, "Same small fix. You just took a coffee break.", 46, "ink", 700)
+        + _text(80, 245, "It uses 10 times as much of your usage limit.", 46, "acc", 700)
+        + "".join(blocks)
+        + _text(80, 590, "1 block = one small fix in a new session. The resumed session held 97k tokens.", 24, "muted", 400)
         + _dots(0)
         + "</g>"
     )
@@ -180,7 +186,7 @@ def build() -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
         f'role="img" aria-label="{escape(ALT, {chr(34): "&quot;"})}">'
-        "<title>A 10-minute break makes a small Claude Code fix use 10 times as much</title>"
+        "<title>Claude Code usage anti-patterns and best-practices</title>"
         f"<style>{style}</style>"
         f'<rect width="{W}" height="{H}" rx="24" class="bg"/>'
         + "".join(parts)
