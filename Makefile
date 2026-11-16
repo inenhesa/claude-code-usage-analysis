@@ -1,4 +1,4 @@
-.PHONY: reproduce test simulate live-figures analyze-fixture benchmark-plan
+.PHONY: reproduce test simulate explainer live-figures analyze-fixture benchmark-plan
 
 reproduce:
 	python3 -m cc_usage_study.pipeline
@@ -8,6 +8,9 @@ test:
 
 simulate:
 	python3 -m cc_usage_study.simulate --out outputs
+
+explainer:
+	python3 -m cc_usage_study.explainer
 
 live-figures:
 	python3 -m cc_usage_study.experiments figures --out outputs
