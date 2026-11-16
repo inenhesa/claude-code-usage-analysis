@@ -64,7 +64,13 @@ To run only the analyzer yourself: `python3 -m cc_usage_study.analyze ~/.claude/
 
 A "break" means you were away longer than the [prompt cache](https://code.claude.com/docs/en/prompt-caching). That cache lasts **5 minutes** if you use an API key or usage credits, and **1 hour** if you use a subscription within its [usage limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-max-or-ultra-plan). We measured pauses of 2 to 13 minutes on the 5-minute cache. [(does this apply to you?)](#does-this-apply-to-you)
 
-## Copy-paste
+## What to do about it
+
+Three habits that avoid paying for a cache rebuild. Paste them into your terminal or Claude Code prompt and edit the details.
+
+- **Scheduled runs (cron, CI):** start a fresh `claude -p` session every run and pass state in through a notes file, instead of resuming an old session.
+- **Before a break:** run `/compact` and tell it what to keep, so the session is small when you return.
+- **Back from a break on a new task:** run `/clear`, then give a 3-line reminder (Goal, Done, Next).
 
 ```bash
 # Cron and CI: start a new session every run, and keep notes in a file
