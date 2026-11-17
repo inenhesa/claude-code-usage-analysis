@@ -88,6 +88,10 @@ Done: tests in tests/test_invoice.py reproduce it.
 Next: patch money.py, run the suite.
 ```
 
+**Careful with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`.** On a 1M-context model, `25` fires at about 245,000 tokens, which is reasonable. On a 200k-context model it fires at 45,000, below what a summary leaves behind, and the session thrashes (+239% in our model). In T3 Code it stacks with "Auto-compact after", so set only one of the two. [(details)](docs/examples.md)
+
+**T3 Code can compact before a break for you.** Its idle-thread setting has three modes: "When you return" (the default, `onReturn`), "Before the cache expires" (beta, `beforeCacheExpires`), and "Never". "When you return" compacts after the cache has already expired, so you pay the rebuild anyway. "Before the cache expires" compacts an idle thread while the cache is still warm, which is the automatic version of `/compact` before a break. Not measured in this study yet.
+
 ---
 
 ## The evidence
