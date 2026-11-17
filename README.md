@@ -2,6 +2,8 @@
 
 <p align="center"><img src="outputs/figures/explainer.svg" alt="Animated explainer. Resume a session after a 10-minute break and the same small fix uses about 10x a fresh session (measured on a 97k-token session), because the cache expired (5 minutes on an API key, 1 hour on a subscription) and the whole history is sent again. Avoid: resuming after a break, /compact after a break, turning off a tool mid-task (22x a normal turn). Do: /compact before a break (2.5x), /clear plus a 3-line note after one (a fresh start), stay in the session for quick fixes in a row (28% less than /clear between fixes). Star this repo if you found it useful." width="100%"></p>
 
+As engineers and builders we are using LLMs for almost all of our work, and the more we use them the more important it becomes to understand how to optimize the performance, reliability and cost of AI tools. I started this research to better understand and improve my own setup and greatly reduce my token usage and costs.
+
 Claude Code usage is driven by cache misses, not by how much you type. The expensive habits are ways of throwing that cache away.
 
 **How long is your cache?** 5 minutes on an API key (also Bedrock, Vertex and Foundry). 1 hour on a Pro, Max or Ultra subscription within its usage limits. The Claude CLI and the app behave the same. `/usage` shows it on its `Prompt cache (main)` line. [(does this apply to you?)](#does-this-apply-to-you)
